@@ -667,6 +667,11 @@ status_t CameraService::Client::startPreviewMode() {
         native_window_set_buffers_transform(mPreviewWindow.get(),
                 mOrientation);
     }
+
+#ifdef OMAP_ENHANCEMENT_BURST_CAPTURE
+    disableMsgType(CAMERA_MSG_COMPRESSED_BURST_IMAGE);
+#endif
+
     mHardware->setPreviewWindow(mPreviewWindow);
     result = mHardware->startPreview();
 
@@ -813,7 +818,9 @@ status_t CameraService::Client::takePicture(int msgType) {
                         CAMERA_MSG_RAW_IMAGE |
                         CAMERA_MSG_RAW_IMAGE_NOTIFY |
                         CAMERA_MSG_COMPRESSED_IMAGE);
-
+#ifdef OMAP_ENHANCEMENT_BURST_CAPTURE
+        picMsgType |= CAMERA_MSG_COMPRESSED_BURST_IMAGE;
+#endif
     }
     enableMsgType(picMsgType);
 
@@ -1059,6 +1066,11 @@ void CameraService::Client::dataCallback(int32_t msgType,
         case CAMERA_MSG_COMPRESSED_IMAGE:
             client->handleCompressedPicture(dataPtr);
             break;
+#ifdef OMAP_ENHANCEMENT_BURST_CAPTURE
+        case CAMERA_MSG_COMPRESSED_BURST_IMAGE:
+            client->handleCompressedBurstPicture(dataPtr);
+            break;
+#endif
         default:
             client->handleGenericData(msgType, dataPtr, metadata);
             break;
@@ -1187,6 +1199,20 @@ void CameraService::Client::handleCompressedPicture(const sp<IMemory>& mem) {
     }
 }
 
+#ifdef OMAP_ENHANCEMENT_BURST_CAPTURE
+// burst picture callback - compressed picture ready
+void CameraService::Client::handleCompressedBurstPicture(const sp<IMemory>& mem) {
+    // Don't disable this message type yet. In this mode takePicture() will
+    // get called only once. When burst finishes this message will get automatically
+    // disabled in the respective call for restarting the preview.
+
+    sp<ICameraClient> c = mCameraClient;
+    mLock.unlock();
+    if (c != 0) {
+        c->dataCallback(CAMERA_MSG_COMPRESSED_IMAGE, mem, NULL);
+    }
+}
+#endif
 
 void CameraService::Client::handleGenericNotify(int32_t msgType,
     int32_t ext1, int32_t ext2) {
