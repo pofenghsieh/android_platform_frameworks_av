@@ -3098,7 +3098,7 @@ bool OMXCodec::drainInputBuffer(BufferInfo *info) {
         MediaBuffer *srcBuffer;
 #ifdef OMAP_ENHANCEMENT
         MediaBuffer *tmpBuffer = NULL;
-        if (!mIsEncoder) {
+        if (!mIsEncoder && !(mFlags & kUseSecureInputBuffers)) {
             srcBuffer = new MediaBuffer(info->mData, info->mSize);
             tmpBuffer = srcBuffer;
         }
