@@ -359,6 +359,10 @@ private:
     OMXCodec(const OMXCodec &);
     OMXCodec &operator=(const OMXCodec &);
 
+#ifdef OMAP_ENHANCEMENT_S3D
+    void handle_extradata(void *data);
+#endif
+
 #ifdef OMAP_ENHANCEMENT
     OMX_U32 mInputMinBufferSize;
 public:

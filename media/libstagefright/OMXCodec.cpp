@@ -50,6 +50,11 @@
 #include <ctype.h>
 #endif
 
+#ifdef OMAP_ENHANCEMENT_S3D
+#include <OMX_TI_Common.h>
+#include <ui/S3DFormat.h>
+#endif
+
 namespace android {
 
 // Treat time out as an error if we have not received any output
@@ -62,6 +67,12 @@ const static int64_t kBufferFilledEventTimeOutNs = 3000000000LL;
 // 1000 is more than enough for us to tell whether the omx
 // component in question is buggy or not.
 const static uint32_t kMaxColorFormatSupported = 1000;
+
+#ifdef OMAP_ENHANCEMENT_S3D
+// OMX TI specific extra data types
+const static uint32_t OMX_TI_SEIinfo2010Frame1 = 0x7F000015;
+const static uint32_t OMX_TI_SEIinfo2010Frame2 = 0x7F000016;
+#endif
 
 #define FACTORY_CREATE_ENCODER(name) \
 static sp<MediaSource> Make##name(const sp<MediaSource> &source, const sp<MetaData> &meta) { \
@@ -2151,6 +2162,55 @@ int64_t OMXCodec::getDecodingTimeUs() {
     return timeUs;
 }
 
+#ifdef OMAP_ENHANCEMENT_S3D
+void OMXCodec::handle_extradata(void *data)
+{
+    if (mNativeWindow == NULL || data == NULL) {
+        return;
+    }
+
+    OMX_TI_PLATFORMPRIVATE *pPrivate = (OMX_TI_PLATFORMPRIVATE *)data;
+    if (pPrivate->pMetaDataBuffer == NULL) {
+        return;
+    }
+
+    OMX_OTHER_EXTRADATATYPE *pExtraData;
+    OMX_U8 *pData = (OMX_U8 *)pPrivate->pMetaDataBuffer;
+    unsigned int offset = 0;
+    do {
+        pExtraData = ( OMX_OTHER_EXTRADATATYPE *)(pData+offset);
+        offset += pExtraData->nSize;
+        if (offset > pPrivate->nMetaDataSize) {
+            break;
+        }
+        uint32_t layout = 0;
+        switch((int)pExtraData->eType) {
+            case OMX_TI_SEIinfo2010Frame1:
+            case OMX_TI_SEIinfo2010Frame2:
+                OMX_TI_FRAMEPACKINGDECINFO *pFramePacking;
+                pFramePacking = (OMX_TI_FRAMEPACKINGDECINFO *)pExtraData->data;
+                if (pFramePacking->nFramePackingArrangementType == OMX_TI_Video_FRAMEPACK_SIDE_BY_SIDE) {
+                    layout = eSideBySide << 16;
+                } else if (pFramePacking->nFramePackingArrangementType == OMX_TI_Video_FRAMEPACK_TOP_BOTTOM) {
+                    layout = eTopBottom << 16;
+                }
+
+                if (pFramePacking->nContentInterpretationType) {
+                    layout |= eLeftViewFirst << 24;
+                } else {
+                    layout |= eRightViewFirst << 24;
+                }
+
+                if (layout) {
+                    native_window_set_buffers_layout(mNativeWindow.get(), layout);
+                }
+                break;
+        }
+    } while((offset + sizeof(OMX_OTHER_EXTRADATATYPE) - 1) <= pPrivate->nMetaDataSize &&
+             pExtraData && pExtraData->eType != 0);
+}
+#endif
+
 void OMXCodec::on_message(const omx_message &msg) {
     if (mState == ERROR) {
         /*
@@ -2308,6 +2368,15 @@ void OMXCodec::on_message(const omx_message &msg) {
                     isCodecSpecific = true;
                 }
 
+#ifdef OMAP_ENHANCEMENT_S3D
+                if ((msg.u.extended_buffer_data.flags & OMX_TI_BUFFERFLAG_DETACHEDEXTRADATA) &&
+                    !(mFlags & kEnableGrallocUsageProtected) &&
+                    !(msg.u.extended_buffer_data.flags & OMX_BUFFERFLAG_EOS) &&
+                    !strcmp(mComponentName, "OMX.TI.DUCATI1.VIDEO.DECODER") &&
+                    mOMXLivesLocally) {
+                    handle_extradata(msg.u.extended_buffer_data.platform_private);
+                }
+#endif
                 if (isGraphicBuffer || mQuirks & kOutputBuffersAreUnreadable) {
                     buffer->meta_data()->setInt32(kKeyIsUnreadable, true);
                 }
