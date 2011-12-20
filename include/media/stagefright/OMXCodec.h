@@ -361,6 +361,7 @@ private:
 
 #ifdef OMAP_ENHANCEMENT_S3D
     void handle_extradata(void *data);
+    void setupAVCEncoderS3DParameters(int32_t s3dLayout);
 #endif
 
 #ifdef OMAP_ENHANCEMENT

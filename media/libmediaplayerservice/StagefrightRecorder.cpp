@@ -1416,6 +1416,13 @@ status_t StagefrightRecorder::setupVideoEncoder(
         enc_meta->setInt32(kKeyVideoLevel, mVideoEncoderLevel);
     }
 
+#ifdef OMAP_ENHANCEMENT_S3D
+    int32_t s3dLayout;
+    if (meta->findInt32(kKeyS3DLayout, &s3dLayout)) {
+        enc_meta->setInt32(kKeyS3DLayout, s3dLayout);
+    }
+#endif
+
     OMXClient client;
     CHECK_EQ(client.connect(), (status_t)OK);
 

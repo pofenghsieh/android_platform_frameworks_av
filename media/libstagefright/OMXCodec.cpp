@@ -1239,8 +1239,61 @@ status_t OMXCodec::setupAVCEncoderParameters(const sp<MetaData>& meta) {
 
     CHECK_EQ(setupBitRate(bitRate), (status_t)OK);
 
+#ifdef OMAP_ENHANCEMENT_S3D
+    int32_t s3dLayout;
+    if (meta->findInt32(kKeyS3DLayout, &s3dLayout)) {
+        setupAVCEncoderS3DParameters(s3dLayout);
+    }
+#endif
+
     return OK;
 }
+
+#ifdef OMAP_ENHANCEMENT_S3D
+void OMXCodec::setupAVCEncoderS3DParameters(int32_t s3dLayout) {
+
+    if ((s3dLayout != eSideBySide) && (s3dLayout != eTopBottom)) {
+        CODEC_LOGE("Invalid s3d layout");
+        return;
+    }
+
+    OMX_TI_VIDEO_PARAM_FRAMEDATACONTENTTYPE fdc;
+    OMX_TI_VIDEO_PARAM_AVCENC_FRAMEPACKINGINFO2010 fpi;
+
+    InitOMXParams(&fdc);
+    fdc.nPortIndex = kPortIndexInput;
+    fdc.eContentType = OMX_TI_Video_AVC_2010_StereoFramePackingType;
+
+    InitOMXParams(&fpi);
+    fpi.nPortIndex = kPortIndexInput;
+    fpi.nFrame0PositionX = 0;
+    fpi.nFrame0PositionY = 0;
+    fpi.nFrame1PositionX = 0;
+    fpi.nFrame1PositionY = 0;
+
+    if (s3dLayout == eSideBySide) {
+        fpi.eFramePackingType = OMX_TI_Video_FRAMEPACK_SIDE_BY_SIDE;
+    } else {
+        fpi.eFramePackingType = OMX_TI_Video_FRAMEPACK_TOP_BOTTOM;
+    }
+
+    status_t err = mOMX->setParameter(
+            mNode,
+            (OMX_INDEXTYPE)OMX_TI_IndexParamVideoFrameDataContentSettings,
+            &fdc, sizeof(fdc));
+
+    if (err == OK) {
+        err = mOMX->setParameter(
+                mNode,
+                (OMX_INDEXTYPE)OMX_TI_IndexParamStereoFramePacking2010Settings,
+                &fpi, sizeof(fpi));
+    }
+
+    if (err) {
+        CODEC_LOGE("could not configure S3D encoding parameters (0x%x)", err);
+    }
+}
+#endif
 
 status_t OMXCodec::setVideoOutputFormat(
         const char *mime, const sp<MetaData>& meta) {
