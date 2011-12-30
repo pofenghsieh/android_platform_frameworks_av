@@ -984,6 +984,14 @@ status_t MPEG4Extractor::parseChunk(off64_t *offset, int depth) {
 
             off64_t stop_offset = *offset + chunk_size;
             *offset = data_offset + sizeof(buffer);
+#ifdef OMAP_ENHANCEMENT
+            if (!strcasecmp(MEDIA_MIMETYPE_AUDIO_AMR_WB,
+                    FourCC2MIME(chunk_type)) ||
+                    !strcasecmp(MEDIA_MIMETYPE_AUDIO_AMR_NB,
+                    FourCC2MIME(chunk_type))) {
+                *offset = stop_offset;
+            }
+#endif
             while (*offset < stop_offset) {
                 status_t err = parseChunk(offset, depth + 1);
                 if (err != OK) {
