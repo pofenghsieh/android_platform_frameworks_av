@@ -40,10 +40,18 @@ public:
         MED_QUALITY=2,
         HIGH_QUALITY=3,
         VERY_HIGH_QUALITY=4,
+#ifdef OMAP_ENHANCEMENT
+        SPEEX_QUALITY=5,
+#endif
     };
 
     static AudioResampler* create(int bitDepth, int inChannelCount,
             int32_t sampleRate, src_quality quality=DEFAULT_QUALITY);
+
+#ifdef OMAP_ENHANCEMENT
+    static int32_t checkRate(int32_t outRate, int32_t inRate);
+    virtual int32_t checkCRate(int32_t outRate, int32_t inRate) const;
+#endif
 
     virtual ~AudioResampler();
 
