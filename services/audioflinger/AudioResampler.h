@@ -40,6 +40,9 @@ public:
         MED_QUALITY=2,
         HIGH_QUALITY=3,
         VERY_HIGH_QUALITY=4,
+#ifdef OMAP_ENHANCEMENT
+        SPEEX_QUALITY=5,
+#endif
     };
 
     static AudioResampler* create(int bitDepth, int inChannelCount,
