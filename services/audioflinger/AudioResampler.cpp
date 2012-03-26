@@ -28,6 +28,7 @@
 
 #ifdef OMAP_ENHANCEMENT
 #include "AudioResamplerSpeex.h"
+#include <utils/threads.h>
 #endif
 
 #ifdef __arm__
@@ -236,6 +237,32 @@ AudioResampler* AudioResampler::create(int bitDepth, int inChannelCount,
     resampler->init();
     return resampler;
 }
+
+#ifdef OMAP_ENHANCEMENT
+int32_t AudioResampler::checkRate(int32_t outRate, int32_t inRate) {
+    static AudioResampler *resampler = NULL;
+
+    if (!resampler) {
+        static android::Mutex lock;
+        android::AutoMutex _l(lock);
+        if (!resampler) {
+            resampler = create(16, 2, 44100);
+            ALOGD("static resampler for checkRate() allocated\n");
+        }
+    }
+
+    return resampler->checkCRate(outRate, inRate);
+}
+
+int32_t AudioResampler::checkCRate(int32_t outRate, int32_t inRate) const {
+    if (inRate > 2*outRate) {
+        ALOGD("Unsupported conversion from %d to %d. Maximum input rate is %d.\n",
+             inRate, outRate, 2*outRate);
+        return 2*outRate;
+    }
+    return 0;
+}
+#endif
 
 AudioResampler::AudioResampler(int bitDepth, int inChannelCount,
         int32_t sampleRate, src_quality quality) :
