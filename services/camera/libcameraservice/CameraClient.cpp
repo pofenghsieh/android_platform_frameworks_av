@@ -763,6 +763,10 @@ status_t CameraClient::reprocess(int msgType, const String8& params) {
                            CAMERA_MSG_RAW_IMAGE_NOTIFY |
                            CAMERA_MSG_COMPRESSED_IMAGE);
 
+#ifdef OMAP_ENHANCEMENT_BURST_CAPTURE
+    picMsgType |= CAMERA_MSG_COMPRESSED_BURST_IMAGE;
+#endif
+
     enableMsgType(picMsgType);
 
     return mHardware->reprocess(params);
