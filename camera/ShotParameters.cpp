@@ -26,6 +26,10 @@ namespace android {
 // Parameter keys to communicate between camera application and driver.
 const char ShotParameters::KEY_BURST[] = "burst-capture";
 const char ShotParameters::KEY_EXP_GAIN_PAIRS[] = "exp-gain-pairs";
+const char ShotParameters::KEY_EXP_COMPENSATION[] = "exp-compensation";
+const char ShotParameters::KEY_FLUSH_CONFIG[] = "flush";
+const char ShotParameters::TRUE[] = "true";
+const char ShotParameters::FALSE[] = "false";
 
 void ShotParameters::setBurst(int num_shots)
 {
@@ -35,6 +39,16 @@ void ShotParameters::setBurst(int num_shots)
 void ShotParameters::setExposureGainPairs(const char *pairs)
 {
     set(KEY_EXP_GAIN_PAIRS, pairs);
+}
+
+void ShotParameters::setExposureCompensation(const char *comp)
+{
+    set(KEY_EXP_COMPENSATION, comp);
+}
+
+void ShotParameters::setFlushConfig(bool flush)
+{
+    set(KEY_FLUSH_CONFIG, flush ? TRUE : FALSE);
 }
 
 }; // namespace android
