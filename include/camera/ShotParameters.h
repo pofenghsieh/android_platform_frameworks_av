@@ -31,6 +31,8 @@ public:
 
     void setBurst(int num_shots);
     void setExposureGainPairs(const char *pairs);
+    void setExposureCompensation(const char *comp);
+    void setFlushConfig(bool flush);
 
     // Parameter keys to communicate between camera application and driver.
     // The access (read/write, read only, or write only) is viewed from the
@@ -38,6 +40,12 @@ public:
 
     static const char KEY_BURST[];
     static const char KEY_EXP_GAIN_PAIRS[];
+    static const char KEY_EXP_COMPENSATION[];
+    static const char KEY_FLUSH_CONFIG[];
+
+    // Values for boolean type parameters
+    static const char TRUE[];
+    static const char FALSE[];
 
 };
 
