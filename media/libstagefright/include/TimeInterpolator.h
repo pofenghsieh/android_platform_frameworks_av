@@ -17,12 +17,13 @@
 #define TIME_INTERPOLATOR_H_
 
 #include <utils/threads.h>
+#include <utils/RefBase.h>
 #include <stdint.h>
 
 namespace android
 {
 
-class TimeInterpolator
+class TimeInterpolator : public virtual RefBase
 {
 public:
     TimeInterpolator();
