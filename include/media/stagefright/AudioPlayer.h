@@ -23,11 +23,19 @@
 #include <media/stagefright/TimeSource.h>
 #include <utils/threads.h>
 
+#ifdef OMAP_ENHANCEMENT
+#define OMAP_TIME_INTERPOLATOR
+#endif
+
 namespace android {
 
 class MediaSource;
 class AudioTrack;
 class AwesomePlayer;
+
+#if defined(OMAP_ENHANCEMENT) && defined(OMAP_TIME_INTERPOLATOR)
+class TimeInterpolator;
+#endif
 
 class AudioPlayer : public TimeSource {
 public:
@@ -119,6 +127,13 @@ private:
 
     AudioPlayer(const AudioPlayer &);
     AudioPlayer &operator=(const AudioPlayer &);
+
+#if defined(OMAP_ENHANCEMENT) && defined(OMAP_TIME_INTERPOLATOR)
+    sp<TimeInterpolator> mRealTimeInterpolator;
+public:
+    int64_t latency() const;
+    void forcibly_update_audio_clocks_read_pointer();
+#endif
 };
 
 }  // namespace android
