@@ -1507,6 +1507,17 @@ static void aps_set_parameters(void *service, audio_io_handle_t io_handle,
     audioPolicyService->setParameters(io_handle, kv_pairs, delay_ms);
 }
 
+#ifdef OMAP_ENHANCEMENT
+static int aps_set_FMRxActive(void *service, bool state)
+{
+    sp<IAudioFlinger> af = AudioSystem::get_audio_flinger();
+    if (af == NULL)
+        return PERMISSION_DENIED;
+
+    return af->setFMRxActive(state);
+}
+#endif
+
 static int aps_set_stream_volume(void *service, audio_stream_type_t stream,
                                      float volume, audio_io_handle_t output,
                                      int delay_ms)
@@ -1561,6 +1572,9 @@ namespace {
         load_hw_module        : aps_load_hw_module,
         open_output_on_module : aps_open_output_on_module,
         open_input_on_module  : aps_open_input_on_module,
+#ifdef OMAP_ENHANCEMENT
+        set_FMRxActive        : aps_set_FMRxActive,
+#endif
     };
 }; // namespace <unnamed>
 

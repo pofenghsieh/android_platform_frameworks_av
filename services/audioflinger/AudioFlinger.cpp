@@ -1548,6 +1548,9 @@ AudioFlinger::PlaybackThread::PlaybackThread(const sp<AudioFlinger>& audioFlinge
     :   ThreadBase(audioFlinger, id, device, AUDIO_DEVICE_NONE, type),
         mMixBuffer(NULL), mSuspended(0), mBytesWritten(0),
         // mStreamTypes[] initialized in constructor body
+#ifdef OMAP_ENHANCEMENT
+        mFmInplay(false),
+#endif
         mOutput(output),
         mLastWriteTime(0), mNumWrites(0), mNumDelayedWrites(0), mInWrite(false),
         mMixerStatus(MIXER_IDLE),
@@ -2144,6 +2147,15 @@ status_t AudioFlinger::PlaybackThread::getRenderPosition(uint32_t *halFrames, ui
     }
 }
 
+#ifdef OMAP_ENHANCEMENT
+status_t AudioFlinger::PlaybackThread::setFMRxActive(bool state)
+{
+    ALOGI("AudioFlinger::PlaybackThread::setFMRxActive,state =%x",state);
+    mFmInplay = state;
+    return NO_ERROR;
+}
+#endif
+
 uint32_t AudioFlinger::PlaybackThread::hasAudioSession(int sessionId) const
 {
     Mutex::Autolock _l(mLock);
@@ -2595,8 +2607,11 @@ bool AudioFlinger::PlaybackThread::threadLoop()
             // put audio hardware into standby after short delay
             if (CC_UNLIKELY((!mActiveTracks.size() && systemTime() > standbyTime) ||
                         isSuspended())) {
+#ifdef OMAP_ENHANCEMENT
+                if (!mStandby && !mFmInplay) {
+#else
                 if (!mStandby) {
-
+#endif
                     threadLoop_standby();
 
                     mStandby = true;
@@ -7279,6 +7294,21 @@ status_t AudioFlinger::setStreamOutput(audio_stream_type_t stream, audio_io_hand
     return NO_ERROR;
 }
 
+#ifdef OMAP_ENHANCEMENT
+status_t AudioFlinger::setFMRxActive(bool state)
+{
+    ALOGI("setFMRxActive() ");
+    // check calling permissions
+    if (!settingsAllowed()) {
+        return PERMISSION_DENIED;
+    }
+
+    for (uint32_t i = 0; i < mPlaybackThreads.size(); i++)
+    mPlaybackThreads.valueAt(i)->setFMRxActive(state);
+
+    return NO_ERROR;
+}
+#endif
 
 int AudioFlinger::newAudioSessionId()
 {

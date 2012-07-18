@@ -114,6 +114,13 @@ public:
                                     audio_io_handle_t output) const = 0;
     virtual     bool        streamMute(audio_stream_type_t stream) const = 0;
 
+#ifdef OMAP_ENHANCEMENT
+    /* This will tell playback thread that FM Rx is active
+     * and device will not go to standby
+     */
+    virtual     status_t    setFMRxActive(bool state) = 0;
+#endif
+
     // set audio mode
     virtual     status_t    setMode(audio_mode_t mode) = 0;
 

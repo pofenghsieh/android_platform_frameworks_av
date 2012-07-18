@@ -136,7 +136,9 @@ public:
 
     virtual     status_t    setMicMute(bool state);
     virtual     bool        getMicMute() const;
-
+#ifdef OMAP_ENHANCEMENT
+    virtual     status_t    setFMRxActive(bool state);
+#endif
     virtual     status_t    setParameters(audio_io_handle_t ioHandle, const String8& keyValuePairs);
     virtual     String8     getParameters(audio_io_handle_t ioHandle, const String8& keys) const;
 
@@ -1072,6 +1074,9 @@ public:
 
                     float       streamVolume(audio_stream_type_t stream) const;
 
+#ifdef OMAP_ENHANCEMENT
+        virtual     status_t   setFMRxActive(bool state);
+#endif
                     sp<Track>   createTrack_l(
                                     const sp<AudioFlinger::Client>& client,
                                     audio_stream_type_t streamType,
@@ -1142,6 +1147,9 @@ public:
         bool                            mMasterMute;
                     void        setMasterMute_l(bool muted) { mMasterMute = muted; }
     protected:
+#ifdef OMAP_ENHANCEMENT
+        bool                            mFmInplay;
+#endif
         SortedVector< wp<Track> >       mActiveTracks;  // FIXME check if this could be sp<>
 
         // Allocate a track name for a given channel mask.
