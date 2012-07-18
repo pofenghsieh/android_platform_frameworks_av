@@ -1517,6 +1517,9 @@ AudioFlinger::PlaybackThread::PlaybackThread(const sp<AudioFlinger>& audioFlinge
         // but it would be safer to explicitly pass initial masterMute as parameter
         mMasterMute(audioFlinger->masterMute_l()),
         // mStreamTypes[] initialized in constructor body
+#ifdef OMAP_ENHANCEMENT
+        mFmInplay(false),
+#endif
         mOutput(output),
         // Assumes constructor is called by AudioFlinger with it's mLock held,
         // but it would be safer to explicitly pass initial masterVolume as parameter
@@ -2077,6 +2080,14 @@ status_t AudioFlinger::PlaybackThread::getRenderPosition(uint32_t *halFrames, ui
     return mOutput->stream->get_render_position(mOutput->stream, dspFrames);
 }
 
+#ifdef OMAP_ENHANCEMENT
+status_t AudioFlinger::PlaybackThread::setFMRxActive(bool state)
+{
+    ALOGI("AudioFlinger::PlaybackThread::setFMRxActive,state =%x",state);
+    mFmInplay = state;
+    return NO_ERROR;
+}
+#endif
 uint32_t AudioFlinger::PlaybackThread::hasAudioSession(int sessionId)
 {
     Mutex::Autolock _l(mLock);
@@ -2553,7 +2564,11 @@ if (mType == MIXER) {
             // put audio hardware into standby after short delay
             if (CC_UNLIKELY((!mActiveTracks.size() && systemTime() > standbyTime) ||
                         mSuspended > 0)) {
+#ifdef OMAP_ENHANCEMENT
+                if (!mStandby && !mFmInplay) {
+#else
                 if (!mStandby) {
+#endif
 
                     threadLoop_standby();
 
@@ -7120,6 +7135,21 @@ status_t AudioFlinger::setStreamOutput(audio_stream_type_t stream, audio_io_hand
     return NO_ERROR;
 }
 
+#ifdef OMAP_ENHANCEMENT
+status_t AudioFlinger::setFMRxActive(bool state)
+{
+    ALOGI("setFMRxActive() ");
+    // check calling permissions
+    if (!settingsAllowed()) {
+        return PERMISSION_DENIED;
+    }
+
+    for (uint32_t i = 0; i < mPlaybackThreads.size(); i++)
+        mPlaybackThreads.valueAt(i)->setFMRxActive(state);
+
+    return NO_ERROR;
+}
+#endif
 
 int AudioFlinger::newAudioSessionId()
 {
