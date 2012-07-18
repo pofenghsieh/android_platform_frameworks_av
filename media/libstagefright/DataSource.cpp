@@ -35,6 +35,7 @@
 
 #ifdef OMAP_ENHANCEMENT
 #include "include/ASFExtractor.h"
+#include "include/AVIExtractor.h"
 #endif
 
 #include "matroska/MatroskaExtractor.h"
@@ -129,6 +130,7 @@ void DataSource::RegisterDefaultSniffers() {
     if(isASFParserAvailable()) {
         RegisterSniffer(SniffASF);
     }
+    RegisterSniffer(SniffAVI);
 #endif
 
     char value[PROPERTY_VALUE_MAX];
