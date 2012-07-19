@@ -571,6 +571,22 @@ status_t CameraClient::takePicture(int msgType) {
     enableMsgType(picMsgType);
 
 #ifdef OMAP_ENHANCEMENT_CPCAM
+    // make sure the other capture messages are disabled
+    picMsgType = ~picMsgType &
+                 (CAMERA_MSG_SHUTTER |
+                  CAMERA_MSG_POSTVIEW_FRAME |
+                  CAMERA_MSG_RAW_IMAGE |
+                  CAMERA_MSG_RAW_IMAGE_NOTIFY |
+                  CAMERA_MSG_COMPRESSED_IMAGE |
+#ifdef OMAP_ENHANCEMENT_BURST_CAPTURE
+                  CAMERA_MSG_RAW_BURST |
+                  CAMERA_MSG_COMPRESSED_BURST_IMAGE |
+#endif
+                  CAMERA_MSG_RAW_IMAGE_NOTIFY);
+    disableMsgType(picMsgType);
+#endif
+
+#ifdef OMAP_ENHANCEMENT_CPCAM
     return mHardware->takePictureWithParameters(params);
 #else
     return mHardware->takePicture();
@@ -768,6 +784,19 @@ status_t CameraClient::reprocess(int msgType, const String8& params) {
 #endif
 
     enableMsgType(picMsgType);
+
+    // make sure the other capture messages are disabled
+    picMsgType = ~picMsgType &
+                 (CAMERA_MSG_SHUTTER |
+                  CAMERA_MSG_POSTVIEW_FRAME |
+                  CAMERA_MSG_RAW_IMAGE |
+                  CAMERA_MSG_RAW_IMAGE_NOTIFY |
+#ifdef OMAP_ENHANCEMENT_BURST_CAPTURE
+                  CAMERA_MSG_RAW_BURST |
+                  CAMERA_MSG_COMPRESSED_BURST_IMAGE |
+#endif
+                  CAMERA_MSG_COMPRESSED_IMAGE);
+    disableMsgType(picMsgType);
 
     return mHardware->reprocess(params);
 }
