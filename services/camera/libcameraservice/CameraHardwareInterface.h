@@ -26,6 +26,7 @@
 #include <camera/CameraParameters.h>
 #ifdef OMAP_ENHANCEMENT_CPCAM
 #include <camera/ShotParameters.h>
+#include <camera/CameraMetadata.h>
 #endif
 #include <system/window.h>
 #include <hardware/camera.h>
@@ -120,6 +121,7 @@ public:
             mPreviewStreamExtendedOps.update_and_get_buffer = __update_and_get_buffer;
             mPreviewStreamExtendedOps.get_buffer_dimension = __get_buffer_dimension;
             mPreviewStreamExtendedOps.get_buffer_format = __get_buffer_format;
+            mPreviewStreamExtendedOps.set_metadata = __set_metadata;
 #endif
             if (mDeviceExtendedOps.set_extended_preview_ops) {
                 mDeviceExtendedOps.set_extended_preview_ops(mDevice, &mPreviewStreamExtendedOps);
@@ -783,6 +785,14 @@ private:
     {
         ANativeWindow *a = anw(w);
         return a->query(a, NATIVE_WINDOW_FORMAT, format);
+    }
+
+    static int __set_metadata(struct preview_stream_ops *w,
+            const camera_memory_t *metadata)
+    {
+        ANativeWindow *a = anw(w);
+        sp<CameraHeapMemory> mem = static_cast<CameraHeapMemory *>(metadata->handle);
+        return native_window_set_buffers_metadata(a, mem->mBuffers[0].get());
     }
 
     struct camera_preview_window;
