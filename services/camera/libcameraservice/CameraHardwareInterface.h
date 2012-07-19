@@ -116,6 +116,11 @@ public:
             camera_cmd_send_command_pointer_to_args(&mDeviceExtendedOps, &arg1, &arg2);
             mDevice->ops->send_command(mDevice, CAMERA_CMD_SETUP_EXTENDED_OPERATIONS, arg1, arg2);
 
+#ifdef OMAP_ENHANCEMENT_CPCAM
+            mPreviewStreamExtendedOps.update_and_get_buffer = __update_and_get_buffer;
+            mPreviewStreamExtendedOps.get_buffer_dimension = __get_buffer_dimension;
+            mPreviewStreamExtendedOps.get_buffer_format = __get_buffer_format;
+#endif
             if (mDeviceExtendedOps.set_extended_preview_ops) {
                 mDeviceExtendedOps.set_extended_preview_ops(mDevice, &mPreviewStreamExtendedOps);
             }
@@ -730,6 +735,47 @@ private:
     }
 
 #ifdef OMAP_ENHANCEMENT_CPCAM
+    static int __update_and_get_buffer(struct preview_stream_ops* w,
+            buffer_handle_t** buffer, int *stride)
+    {
+        ANativeWindow *a = anw(w);
+        ANativeWindowBuffer* anb;
+        int status = a->perform(a, NATIVE_WINDOW_UPDATE_AND_GET_CURRENT, &anb);
+        if (status != OK) {
+            return status;
+        }
+
+        *buffer = &anb->handle;
+        *stride = anb->stride;
+        return OK;
+    }
+
+    static int __get_buffer_dimension(struct preview_stream_ops *w,
+            int *width, int *height)
+    {
+        ANativeWindow *a = anw(w);
+        int status;
+
+        status = a->query(a, NATIVE_WINDOW_WIDTH, width);
+        if (status != OK) {
+            return status;
+        }
+
+        status = a->query(a, NATIVE_WINDOW_HEIGHT, height);
+        if (status != OK) {
+            return status;
+        }
+
+        return OK;
+    }
+
+    static int __get_buffer_format(struct preview_stream_ops *w,
+            int *format)
+    {
+        ANativeWindow *a = anw(w);
+        return a->query(a, NATIVE_WINDOW_FORMAT, format);
+    }
+
     struct camera_preview_window;
     void initHalPreviewWindow(camera_preview_window &w)
     {
