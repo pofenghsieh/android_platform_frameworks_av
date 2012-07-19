@@ -126,6 +126,13 @@ typedef struct camera_metadata
     // Indicates whether LSC table is applied or not
     uint32_t lsc_table_applied;
 
+    // The number of detected faces in the frame.
+    int32_t number_of_faces;
+
+    // Offset to an 'camera_metadata_face' array of the detected faces.
+    //  The length is number_of_faces.
+    uint32_t faces_offset;
+
     void *handle;
 } camera_metadata_t;
 
