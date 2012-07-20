@@ -53,6 +53,7 @@ LOCAL_SRC_FILES:=                         \
         WVMExtractor.cpp                  \
         XINGSeeker.cpp                    \
         avc_utils.cpp                     \
+        APE.cpp                           \
 
 ifeq ($(OMAP_ENHANCEMENT), true)
 LOCAL_SRC_FILES += ASFExtractor.cpp
