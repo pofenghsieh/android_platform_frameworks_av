@@ -56,6 +56,7 @@ LOCAL_SRC_FILES:=                         \
 
 ifeq ($(OMAP_ENHANCEMENT), true)
 LOCAL_SRC_FILES += ASFExtractor.cpp
+LOCAL_SRC_FILES +=  AVIExtractor.cpp
 endif
 
 LOCAL_C_INCLUDES:= \
