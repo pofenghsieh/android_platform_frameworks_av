@@ -56,6 +56,7 @@ LOCAL_SRC_FILES:=                         \
         avc_utils.cpp                     \
         mp4/FragmentedMP4Parser.cpp       \
         mp4/TrackFragment.cpp             \
+        APE.cpp                           \
 
 ifeq ($(OMAP_ENHANCEMENT), true)
 LOCAL_SRC_FILES +=  AVIExtractor.cpp
