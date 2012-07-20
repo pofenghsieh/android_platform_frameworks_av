@@ -251,6 +251,17 @@ uint32_t OMXCodec::getComponentQuirks(
         quirks |= kOutputBuffersAreUnreadable;
     }
 
+#ifdef OMAP_ENHANCEMENT
+    if (list->codecHasQuirk(
+                index, "needs-flush-before-disable")) {
+        quirks |= kNeedsFlushBeforeDisable;
+    }
+    if (list->codecHasQuirk(
+                index, "requires-flush-complete-emulation")) {
+        quirks |= kRequiresFlushCompleteEmulation;
+    }
+#endif
+
     return quirks;
 }
 
@@ -494,6 +505,24 @@ status_t OMXCodec::configureCodec(const sp<MetaData> &meta) {
             CHECK(meta->findData(kKeyVorbisBooks, &type, &data, &size));
             addCodecSpecificData(data, size);
         }
+#ifdef OMAP_ENHANCEMENT
+        else if (meta->findData(kKeyHdr, &type, &data, &size)) {
+            CODEC_LOGV("Codec specific information of size %d", size);
+            addCodecSpecificData(data, size);
+        }
+
+        if (!strcasecmp(MEDIA_MIMETYPE_VIDEO_WMV, mMIME)) {
+            //Set the profile (RCV or VC1)
+            meta->findData(kKeyHdr, &type, &data, &size);
+            const uint8_t *ptr = (const uint8_t *)data;
+
+            OMX_U32 width = (((OMX_U32)ptr[18] << 24) | ((OMX_U32)ptr[17] << 16) | ((OMX_U32)ptr[16] << 8) | (OMX_U32)ptr[15]);
+            OMX_U32 height  = (((OMX_U32)ptr[22] << 24) | ((OMX_U32)ptr[21] << 16) | ((OMX_U32)ptr[20] << 8) | (OMX_U32)ptr[19]);
+
+            CODEC_LOGV("Height and width = %u %u\n", height, width);
+
+        }
+#endif
     }
 
     int32_t bitRate = 0;
@@ -794,6 +823,10 @@ void OMXCodec::setVideoInputFormat(
         compressionFormat = OMX_VIDEO_CodingMPEG4;
     } else if (!strcasecmp(MEDIA_MIMETYPE_VIDEO_H263, mime)) {
         compressionFormat = OMX_VIDEO_CodingH263;
+#ifdef OMAP_ENHANCEMENT
+    } else if (!strcasecmp(MEDIA_MIMETYPE_VIDEO_WMV, mime)) {
+        compressionFormat = OMX_VIDEO_CodingWMV;
+#endif
     } else {
         ALOGE("Not a supported video mime type: %s", mime);
         CHECK(!"Should not be here. Not a supported video mime type.");
@@ -1185,6 +1218,10 @@ status_t OMXCodec::setVideoOutputFormat(
         compressionFormat = OMX_VIDEO_CodingVPX;
     } else if (!strcasecmp(MEDIA_MIMETYPE_VIDEO_MPEG2, mime)) {
         compressionFormat = OMX_VIDEO_CodingMPEG2;
+#ifdef OMAP_ENHANCEMENT
+    } else if (!strcasecmp(MEDIA_MIMETYPE_VIDEO_WMV , mime)) {
+        compressionFormat = OMX_VIDEO_CodingWMV;
+#endif
     } else {
         ALOGE("Not a supported video mime type: %s", mime);
         CHECK(!"Should not be here. Not a supported video mime type.");
@@ -1360,6 +1397,16 @@ void OMXCodec::setComponentRole(
             "video_decoder.mpeg4", "video_encoder.mpeg4" },
         { MEDIA_MIMETYPE_VIDEO_H263,
             "video_decoder.h263", "video_encoder.h263" },
+#ifdef OMAP_ENHANCEMENT
+        { MEDIA_MIMETYPE_VIDEO_WMV,
+            "video_decoder.wmv", "" },
+        { MEDIA_MIMETYPE_AUDIO_WMA,
+            "audio_decoder.wma", "" },
+        { MEDIA_MIMETYPE_AUDIO_WMAPRO,
+            "audio_decoder.wmapro", "" },
+        { MEDIA_MIMETYPE_AUDIO_WMALSL,
+            "audio_decoder.wmalsl", "" },
+#endif
         { MEDIA_MIMETYPE_VIDEO_VPX,
             "video_decoder.vpx", "video_encoder.vpx" },
         { MEDIA_MIMETYPE_AUDIO_RAW,
@@ -4427,6 +4474,10 @@ void OMXCodec::initOutputFormat(const sp<MetaData> &inputFormat) {
             } else if (video_def->eCompressionFormat == OMX_VIDEO_CodingAVC) {
                 mOutputFormat->setCString(
                         kKeyMIMEType, MEDIA_MIMETYPE_VIDEO_AVC);
+#ifdef OMAP_ENHANCEMENT
+            } else if (video_def->eCompressionFormat == OMX_VIDEO_CodingWMV) {
+                mOutputFormat->setCString(kKeyMIMEType, MEDIA_MIMETYPE_VIDEO_WMV);
+#endif
             } else {
                 CHECK(!"Unknown compression format.");
             }
