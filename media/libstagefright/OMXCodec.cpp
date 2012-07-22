@@ -2453,8 +2453,13 @@ void OMXCodec::onEvent(OMX_EVENTTYPE event, OMX_U32 data1, OMX_U32 data2) {
         case OMX_EventError:
         {
             CODEC_LOGE("ERROR(0x%08lx, %ld)", data1, data2);
-
+#ifdef OMAP_ENHANCEMENT
+            if (!isIntermediateState(mState)) {
+                setState(ERROR);
+            }
+#else
             setState(ERROR);
+#endif
             break;
         }
 
