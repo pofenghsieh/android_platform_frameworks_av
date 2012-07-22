@@ -2157,8 +2157,13 @@ int64_t OMXCodec::getDecodingTimeUs() {
 
 void OMXCodec::on_message(const omx_message &msg) {
     if (mState == ERROR) {
+#ifdef OMAP_ENHANCEMENT
+        /* Dropping buffers return from client will cause problem in freeing so process them */
+        ALOGW("Dropping OMX message - we're in ERROR state. msg.type: %d",msg.type);
+#else
         ALOGW("Dropping OMX message - we're in ERROR state.");
         return;
+#endif
     }
 
     switch (msg.type) {
@@ -2464,8 +2469,13 @@ void OMXCodec::onEvent(OMX_EVENTTYPE event, OMX_U32 data1, OMX_U32 data2) {
         case OMX_EventError:
         {
             CODEC_LOGE("ERROR(0x%08lx, %ld)", data1, data2);
-
+#ifdef OMAP_ENHANCEMENT
+            if (!isIntermediateState(mState)) {
+                setState(ERROR);
+            }
+#else
             setState(ERROR);
+#endif
             break;
         }
 
