@@ -360,6 +360,7 @@ private:
     OMXCodec &operator=(const OMXCodec &);
 
 #ifdef OMAP_ENHANCEMENT
+    OMX_U32 mInputMinBufferSize;
 public:
     int32_t mVideoFPS;
     status_t setParameter(const String8 &key, const String8 &value);
