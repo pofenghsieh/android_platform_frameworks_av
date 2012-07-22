@@ -1172,7 +1172,12 @@ status_t OMXCodec::setupAVCEncoderParameters(const sp<MetaData>& meta) {
     h264type.eLevel = static_cast<OMX_VIDEO_AVCLEVELTYPE>(profileLevel.mLevel);
 
     // XXX
+#ifdef OMAP_ENHANCEMENT
+    if ((strncmp(mComponentName, "OMX.TI.DUCATI1", 14) != 0)
+            && (h264type.eProfile != OMX_VIDEO_AVCProfileBaseline)) {
+#else
     if (h264type.eProfile != OMX_VIDEO_AVCProfileBaseline) {
+#endif
         ALOGW("Use baseline profile instead of %d for AVC recording",
             h264type.eProfile);
         h264type.eProfile = OMX_VIDEO_AVCProfileBaseline;
