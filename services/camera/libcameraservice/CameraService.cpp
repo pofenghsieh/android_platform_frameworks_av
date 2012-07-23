@@ -931,6 +931,10 @@ status_t CameraService::Client::sendCommand(int32_t cmd, int32_t arg1, int32_t a
     } else if (cmd == CAMERA_CMD_PING) {
         // If mHardware is 0, checkPidAndHardware will return error.
         return OK;
+#ifdef OMAP_ENHANCEMENT_VTC
+    } else if (cmd == CAMERA_CMD_PREVIEW_INITIALIZATION) {
+        mHardware->setPreviewWindow(mPreviewWindow);
+#endif
     }
 
     return mHardware->sendCommand(cmd, arg1, arg2);
