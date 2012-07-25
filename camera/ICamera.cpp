@@ -51,6 +51,7 @@ enum {
     STORE_META_DATA_IN_BUFFERS,
 #ifdef OMAP_ENHANCEMENT_CPCAM
     SET_BUFFER_SOURCE,
+    REPROCESS,
 #endif
 };
 
@@ -292,6 +293,19 @@ public:
         remote()->transact(SET_BUFFER_SOURCE, data, &reply);
         return reply.readInt32();
     }
+
+    // take a picture - returns an IMemory (ref-counted mmap)
+    status_t reprocess(int msgType, const String8& params)
+    {
+        ALOGV("reprocess: 0x%x", msgType);
+        Parcel data, reply;
+        data.writeInterfaceToken(ICamera::getInterfaceDescriptor());
+        data.writeInt32(msgType);
+        data.writeString8(params);
+        remote()->transact(REPROCESS, data, &reply);
+        status_t ret = reply.readInt32();
+        return ret;
+    }
 #endif
 };
 
@@ -433,6 +447,14 @@ status_t BnCamera::onTransact(
             sp<ISurfaceTexture> tapin = interface_cast<ISurfaceTexture>(data.readStrongBinder());
             sp<ISurfaceTexture> tapout = interface_cast<ISurfaceTexture>(data.readStrongBinder());
             reply->writeInt32(setBufferSource(tapin, tapout));
+            return NO_ERROR;
+        } break;
+        case REPROCESS: {
+            ALOGV("REPROCESS");
+            CHECK_INTERFACE(ICamera, data, reply);
+            int msgType = data.readInt32();
+            String8 params(data.readString8());
+            reply->writeInt32(reprocess(msgType, params));
             return NO_ERROR;
         } break;
 #endif
