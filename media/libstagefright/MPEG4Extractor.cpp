@@ -774,6 +774,9 @@ status_t MPEG4Extractor::parseChunk(off64_t *offset, int depth) {
             }
 
             bool isTrack = false;
+#ifdef OMAP_ENHANCEMENT
+            Track *backupTrack = mLastTrack;
+#endif
             if (chunk_type == FOURCC('t', 'r', 'a', 'k')) {
                 isTrack = true;
 
@@ -828,7 +831,16 @@ status_t MPEG4Extractor::parseChunk(off64_t *offset, int depth) {
                 status_t err = verifyTrack(mLastTrack);
 
                 if (err != OK) {
+#ifdef OMAP_ENHANCEMENT
+                    //Patch to skip broken/empty track
+                    isTrack = false;
+                    mLastTrack = backupTrack;
+                    mLastTrack->next = NULL;
+                    err = OK;
+                    ALOGE("Found corrupted track descriptor");
+#else
                     return err;
+#endif
                 }
             } else if (chunk_type == FOURCC('m', 'o', 'o', 'v')) {
                 mInitCheck = OK;
