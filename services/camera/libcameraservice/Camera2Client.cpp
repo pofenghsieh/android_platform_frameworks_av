@@ -1191,6 +1191,13 @@ status_t Camera2Client::sendCommand(int32_t cmd, int32_t arg1, int32_t arg2) {
     }
 }
 
+#ifdef OMAP_ENHANCEMENT_CPCAM
+status_t Camera2Client::setBufferSource(const sp<ISurfaceTexture>& tapin,
+        const sp<ISurfaceTexture>& tapout) {
+    return INVALID_OPERATION;
+}
+#endif
+
 status_t Camera2Client::commandStartSmoothZoomL() {
     ALOGE("%s: Unimplemented!", __FUNCTION__);
     return OK;

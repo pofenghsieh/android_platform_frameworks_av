@@ -105,6 +105,10 @@ public:
         virtual status_t      setParameters(const String8& params) = 0;
         virtual String8       getParameters() const = 0;
         virtual status_t      sendCommand(int32_t cmd, int32_t arg1, int32_t arg2) = 0;
+#ifdef OMAP_ENHANCEMENT_CPCAM
+        virtual status_t      setBufferSource(const sp<ISurfaceTexture>& tapin,
+                                              const sp<ISurfaceTexture>& tapout) = 0;
+#endif
 
         // Interface used by CameraService
         Client(const sp<CameraService>& cameraService,

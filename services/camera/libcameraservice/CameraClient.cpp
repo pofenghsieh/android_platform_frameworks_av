@@ -248,6 +248,19 @@ void CameraClient::disconnect() {
         mPreviewWindow = 0;
         mHardware->setPreviewWindow(mPreviewWindow);
     }
+
+#ifdef OMAP_ENHANCEMENT_CPCAM
+   // Release the held ANativeWindow resources.
+    if (mTapinClient != 0 || mTapoutClient != 0) {
+        if (mTapoutClient != 0) {
+            disconnectWindow(mTapoutClient);
+        }
+        mTapinClient = 0;
+        mTapoutClient = 0;
+        mHardware->setBufferSource(mTapinClient, mTapoutClient);
+    }
+#endif
+
     mHardware.clear();
 
     CameraService::Client::disconnect();
@@ -661,6 +674,68 @@ status_t CameraClient::sendCommand(int32_t cmd, int32_t arg1, int32_t arg2) {
 
     return mHardware->sendCommand(cmd, arg1, arg2);
 }
+
+#ifdef OMAP_ENHANCEMENT_CPCAM
+// set the SurfaceTexture that the preview will use
+status_t CameraClient::setBufferSource(
+        const sp<ISurfaceTexture>& tapin,
+        const sp<ISurfaceTexture>& tapout) {
+    LOG1("setBufferSource(%p,%p) (pid %d)", tapin.get(), tapout.get(),
+            getCallingPid());
+
+    sp<IBinder> tapinBinder, tapoutBinder;
+    sp<ANativeWindow> tapinWindow, tapoutWindow;
+    status_t result = NO_ERROR;
+
+    Mutex::Autolock lock(mLock);
+
+    if (tapin != 0) {
+        tapinBinder = tapin->asBinder();
+        tapinWindow = new SurfaceTextureClient(tapin);
+    }
+
+    if (tapout != 0) {
+        tapoutBinder = tapout->asBinder();
+        tapoutWindow = new SurfaceTextureClient(tapout);
+    }
+
+    result = checkPidAndHardware();
+    if (result != NO_ERROR) return result;
+
+    // return if we already set this buffer source
+    if (tapinBinder == mTapin && tapoutBinder == mTapout) {
+        return NO_ERROR;
+    }
+
+    // need to connect tap out since camera will be FILLING those buffers
+    if (tapoutWindow != 0) {
+        result = native_window_api_connect(tapoutWindow.get(), NATIVE_WINDOW_API_CAMERA);
+        if (result != NO_ERROR) {
+            ALOGE("native_window_api_connect failed: %s (%d)", strerror(-result), result);
+            return result;
+        }
+    }
+
+    if (tapoutWindow != 0 || tapinWindow !=0) {
+        result = mHardware->setBufferSource(tapinWindow, tapoutWindow);
+    }
+
+    if (result == NO_ERROR) {
+        // Everything has succeeded.  Disconnect the old window and remember the new window.
+        disconnectWindow(mTapoutClient);
+        mTapin = tapinBinder;
+        mTapinClient = tapinWindow;
+        mTapout = tapoutBinder;
+        mTapoutClient = tapoutWindow;
+    } else {
+        // Something went wrong after we connected to the new window, so
+        // disconnect here.
+        disconnectWindow(tapoutWindow);
+    }
+
+    return result;
+}
+#endif
 
 // ----------------------------------------------------------------------------
 
