@@ -418,6 +418,14 @@ void Camera::dataCallbackTimestamp(nsecs_t timestamp, int32_t msgType, const sp<
 }
 
 #ifdef OMAP_ENHANCEMENT_CPCAM
+status_t Camera::reprocess(int msgType, const String8& params)
+{
+    ALOGV("reprocess: 0x%x", msgType);
+    sp <ICamera> c = mCamera;
+    if (c == 0) return NO_INIT;
+    return c->reprocess(msgType, params);
+}
+
 // pass the buffered ISurfaceTexture to the camera service
 status_t Camera::setBufferSource(const sp<ISurfaceTexture>& tapin,
                                  const sp<ISurfaceTexture>& tapout)

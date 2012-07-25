@@ -108,6 +108,7 @@ public:
 #ifdef OMAP_ENHANCEMENT_CPCAM
         virtual status_t      setBufferSource(const sp<ISurfaceTexture>& tapin,
                                               const sp<ISurfaceTexture>& tapout) = 0;
+        virtual status_t      reprocess(int msgType, const String8& params) = 0;
 #endif
 
         // Interface used by CameraService

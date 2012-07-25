@@ -735,6 +735,38 @@ status_t CameraClient::setBufferSource(
 
     return result;
 }
+
+// reprocess - image is returned in callback
+status_t CameraClient::reprocess(int msgType, const String8& params) {
+    LOG1("reprocess (pid %d): 0x%x", getCallingPid(), msgType);
+
+    Mutex::Autolock lock(mLock);
+    status_t result = checkPidAndHardware();
+    if (result != NO_ERROR) return result;
+
+    if ((msgType & CAMERA_MSG_RAW_IMAGE) &&
+        (msgType & CAMERA_MSG_RAW_IMAGE_NOTIFY)) {
+        ALOGE("CAMERA_MSG_RAW_IMAGE and CAMERA_MSG_RAW_IMAGE_NOTIFY"
+                " cannot be both enabled");
+        return BAD_VALUE;
+    }
+
+    // We only accept picture related message types
+    // and ignore other types of messages for takePicture().
+    int picMsgType = msgType
+                        & (CAMERA_MSG_SHUTTER |
+                           CAMERA_MSG_POSTVIEW_FRAME |
+                           CAMERA_MSG_RAW_IMAGE |
+#ifdef OMAP_ENHANCEMENT_BURST_CAPTURE
+                           CAMERA_MSG_RAW_BURST |
+#endif
+                           CAMERA_MSG_RAW_IMAGE_NOTIFY |
+                           CAMERA_MSG_COMPRESSED_IMAGE);
+
+    enableMsgType(picMsgType);
+
+    return mHardware->reprocess(params);
+}
 #endif
 
 // ----------------------------------------------------------------------------

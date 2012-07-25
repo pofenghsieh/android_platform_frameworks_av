@@ -489,6 +489,15 @@ public:
         }
         return INVALID_OPERATION;
     }
+
+    status_t reprocess(const ShotParameters &params)
+    {
+        ALOGV("%s(%s)", __FUNCTION__, mName.string());
+        if (mDeviceExtendedOps.reprocess) {
+            return mDeviceExtendedOps.reprocess(mDevice, params.flatten().string());
+        }
+        return INVALID_OPERATION;
+    }
 #endif
 
     /**
