@@ -134,6 +134,12 @@ public:
             // tell camera hal to store meta data or real YUV in video buffers.
             status_t    storeMetaDataInBuffers(bool enabled);
 
+#ifdef OMAP_ENHANCEMENT_CPCAM
+            // pass the buffered ISurfaceTexture to the camera service
+            status_t    setBufferSource(const sp<ISurfaceTexture>& tapin,
+                                        const sp<ISurfaceTexture>& tapout);
+#endif
+
             void        setListener(const sp<CameraListener>& listener);
             void        setRecordingProxyListener(const sp<ICameraRecordingProxyListener>& listener);
             void        setPreviewCallbackFlags(int preview_callback_flag);

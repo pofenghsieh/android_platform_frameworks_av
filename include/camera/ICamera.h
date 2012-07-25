@@ -108,6 +108,12 @@ public:
 
     // tell the camera hal to store meta data or real YUV data in video buffers.
     virtual status_t        storeMetaDataInBuffers(bool enabled) = 0;
+
+#ifdef OMAP_ENHANCEMENT_CPCAM
+    // pass the buffered ISurfaceTexture to the camera service
+    virtual status_t        setBufferSource(const sp<ISurfaceTexture>& tapin,
+                                            const sp<ISurfaceTexture>& tapout) = 0;
+#endif
 };
 
 // ----------------------------------------------------------------------------
