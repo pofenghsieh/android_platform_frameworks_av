@@ -1255,7 +1255,15 @@ void AwesomePlayer::shutdownVideoDecoder_l() {
         usleep(1000);
     }
     IPCThreadState::self()->flushCommands();
+
+#ifdef OMAP_ENHANCEMENT
+    if (mDebugFps != 0) {
+        ALOGD("video decoder shutdown completed");
+    }
+#else
     ALOGV("video decoder shutdown completed");
+#endif
+
 }
 
 status_t AwesomePlayer::setNativeWindow_l(const sp<ANativeWindow> &native) {
@@ -1817,7 +1825,14 @@ void AwesomePlayer::onVideoEvent() {
                 // The widevine extractor doesn't deal well with seeking
                 // audio and video independently. We'll just have to wait
                 // until the decoder catches up, which won't be long at all.
+#ifdef OMAP_ENHANCEMENT
+                if (mDebugFps != 0) {
+                    ALOGD("we're much too late (%.2f secs), video skipping ahead",
+                          latenessUs / 1E6);
+                }
+#else
                 ALOGI("we're very late (%.2f secs)", latenessUs / 1E6);
+#endif
             }
         }
 
@@ -1829,9 +1844,17 @@ void AwesomePlayer::onVideoEvent() {
             if (!(mFlags & SLOW_DECODER_HACK)
                     || mSinceLastDropped > FRAME_DROP_FREQ)
             {
+#ifdef OMAP_ENHANCEMENT
+                if (mDebugFps != 0) {
+                    ALOGD("we're late by %lld us (%.2f secs) dropping "
+                        "one after %d frames",
+                        latenessUs, latenessUs / 1E6, mSinceLastDropped);
+                }
+#else
                 ALOGV("we're late by %lld us (%.2f secs) dropping "
                      "one after %d frames",
                      latenessUs, latenessUs / 1E6, mSinceLastDropped);
+#endif
 
                 mSinceLastDropped = 0;
                 mVideoBuffer->release();
