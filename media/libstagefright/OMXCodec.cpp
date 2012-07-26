@@ -2416,6 +2416,9 @@ void OMXCodec::onEvent(OMX_EVENTTYPE event, OMX_U32 data1, OMX_U32 data2) {
                 onPortSettingsChanged(data1);
             } else if (data1 == kPortIndexOutput &&
                         (data2 == OMX_IndexConfigCommonOutputCrop ||
+#ifdef OMAP_ENHANCEMENT
+                         data2 == OMX_TI_IndexConfigStreamInterlaceFormats ||
+#endif
                          data2 == OMX_IndexConfigCommonScale)) {
 
                 sp<MetaData> oldOutputFormat = mOutputFormat;
@@ -4515,8 +4518,27 @@ void OMXCodec::initOutputFormat(const sp<MetaData> &inputFormat) {
                             video_def->nFrameHeight - 1);
                 }
 
+#ifdef OMAP_ENHANCEMENT
+                OMX_STREAMINTERLACEFORMAT buff_layout;
+                InitOMXParams(&buff_layout);
+                buff_layout.nPortIndex = kPortIndexOutput;
+                uint32_t layout = OMX_InterlaceFrameProgressive;
+                if (OK == mOMX->getConfig(
+                                    mNode,
+                                    OMX_TI_IndexConfigStreamInterlaceFormats,
+                                    &buff_layout, sizeof(buff_layout))) {
+                    layout = buff_layout.bInterlaceFormat ?
+                             buff_layout.nInterlaceFormats & OMX_InterlaceFmtMask :
+                             layout;
+                }
+                mOutputFormat->setInt32(kKeyBufferLayout, layout);
+#endif
+
                 if (mNativeWindow != NULL) {
                      initNativeWindowCrop();
+#ifdef OMAP_ENHANCEMENT
+                     native_window_set_buffers_layout(mNativeWindow.get(), layout);
+#endif
                 }
             }
             break;

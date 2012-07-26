@@ -287,6 +287,49 @@ static VideoFrame *extractVideoFrameWithCodecFlags(
             (OMX_COLOR_FORMATTYPE)srcFormat, OMX_COLOR_Format16bitRGB565);
 
     if (converter.isValid()) {
+
+#ifdef OMAP_ENHANCEMENT
+    int32_t buff_layout;
+    CHECK(meta->findInt32(kKeyBufferLayout, &buff_layout));
+
+    if ((OMX_INTERLACETYPE)buff_layout != OMX_InterlaceFrameProgressive) {
+        if (((OMX_INTERLACETYPE)buff_layout != OMX_InterlaceInterleaveFrameTopFieldFirst) &&
+            ((OMX_INTERLACETYPE)buff_layout != OMX_InterlaceInterleaveFrameBottomFieldFirst)) {
+            /* incase of top/bottom fields separated, the crop
+            * values are communicated for field, not the entire frame
+            */
+            if (frame->mData) {
+                delete frame->mData;
+            }
+            frame->mWidth = crop_right - crop_left + 1;
+            frame->mHeight = (crop_bottom - crop_top + 1) * 2; //two fields
+            frame->mDisplayWidth = frame->mWidth;
+            frame->mDisplayHeight = frame->mHeight;
+            frame->mSize = frame->mWidth * frame->mHeight * 2;
+            frame->mData = new uint8_t[frame->mSize];
+            frame->mRotationAngle = rotationAngle;
+        }
+
+        err = converter.convertInterlacedBuffer(
+            (const uint8_t *)buffer->data() + buffer->range_offset(),
+            width, height,
+            crop_left, crop_top, crop_right, crop_bottom,
+            (OMX_INTERLACETYPE)buff_layout,
+            frame->mData,
+            frame->mWidth,
+            frame->mHeight,
+            0, 0, frame->mWidth - 1, frame->mHeight - 1);
+    } else {
+        err = converter.convert(
+            (const uint8_t *)buffer->data() + buffer->range_offset(),
+            width, height,
+            crop_left, crop_top, crop_right, crop_bottom,
+            frame->mData,
+            frame->mWidth,
+            frame->mHeight,
+            0, 0, frame->mWidth - 1, frame->mHeight - 1);
+    }
+#else
         err = converter.convert(
                 (const uint8_t *)buffer->data() + buffer->range_offset(),
                 width, height,
@@ -295,6 +338,7 @@ static VideoFrame *extractVideoFrameWithCodecFlags(
                 frame->mWidth,
                 frame->mHeight,
                 0, 0, frame->mWidth - 1, frame->mHeight - 1);
+#endif
     } else {
         ALOGE("Unable to instantiate color conversion from format 0x%08x to "
               "RGB565",
