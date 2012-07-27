@@ -65,17 +65,14 @@ endif
 LOCAL_C_INCLUDES:= \
         $(TOP)/frameworks/av/include/media/stagefright/timedtext \
         $(TOP)/frameworks/native/include/media/hardware \
-        $(TOP)/frameworks/native/include/media/openmax \
         $(TOP)/external/flac/include \
         $(TOP)/external/tremolo \
         $(TOP)/external/openssl/include \
 
-ifeq ($(OMAP_ENHANCEMENT), true)
-ifeq ($(ENHANCED_DOMX), true)
-LOCAL_C_INCLUDES += $(TOP)/hardware/ti/domx/omx_core/inc
+ifdef ENHANCED_DOMX
+LOCAL_C_INCLUDES += $(DOMX_PATH)/omx_core/inc
 else
-LOCAL_C_INCLUDES += $(TOP)/hardware/ti/omap4xxx/domx/omx_core/inc
-endif
+LOCAL_C_INCLUDES += $(TOP)/frameworks/native/include/media/openmax
 endif
 
 LOCAL_SHARED_LIBRARIES := \
