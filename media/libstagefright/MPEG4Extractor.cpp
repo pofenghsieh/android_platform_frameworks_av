@@ -396,6 +396,31 @@ status_t MPEG4Extractor::readMetaData() {
         if (mHasVideo) {
             mFileMetaData->setCString(
                     kKeyMIMEType, MEDIA_MIMETYPE_CONTAINER_MPEG4);
+#ifdef OMAP_ENHANCEMENT
+            Track *tempTrack = mFirstTrack;
+            int count = 0;
+            const char *mime;
+            while (tempTrack) {
+                CHECK(tempTrack->meta->findCString(kKeyMIMEType, &mime));
+                if (!strncasecmp("video/", mime, 6)) {
+                    size_t totalframes;
+                    int64_t duration;
+                    int32_t dur32, fps;
+                    fps = 0;
+                    totalframes = tempTrack->sampleTable->countSamples();
+                    tempTrack->meta->findInt64(kKeyDuration, &duration);
+                    dur32 = (int32_t) (duration / 1000000);
+                    if (dur32 <=0) {
+                        //dur32 will be zero for clips < 1 second.
+                        dur32 = 1;
+                    }
+                    fps = totalframes/dur32;
+                    ALOGV("totalframes %d duration %lld dur32 %d fps %d",totalframes,duration,dur32,fps);
+                    tempTrack->meta->setInt32(kKeyVideoFPS,fps);
+                }
+                tempTrack= tempTrack->next;
+            }
+#endif
         } else {
             mFileMetaData->setCString(kKeyMIMEType, "audio/mp4");
         }

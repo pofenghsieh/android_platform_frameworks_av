@@ -562,6 +562,14 @@ status_t OMXCodec::configureCodec(const sp<MetaData> &meta) {
         if (mIsEncoder) {
             setVideoInputFormat(mMIME, meta);
         } else {
+#ifdef OMAP_ENHANCEMENT
+            if(!strcmp(mComponentName, "OMX.TI.DUCATI1.VIDEO.DECODER")) {
+                /* save video FPS */
+                if (!(meta->findInt32(kKeyVideoFPS, &mVideoFPS))) {
+                    mVideoFPS = 30; //default value in case of FPS data not found
+                }
+            }
+#endif
             status_t err = setVideoOutputFormat(
                     mMIME, meta);
 
@@ -1321,6 +1329,9 @@ status_t OMXCodec::setVideoOutputFormat(
 
     video_def->nFrameWidth = width;
     video_def->nFrameHeight = height;
+#ifdef OMAP_ENHANCEMENT
+    video_def->xFramerate = mVideoFPS << 16;
+#endif
 
     err = mOMX->setParameter(
             mNode, OMX_IndexParamPortDefinition, &def, sizeof(def));

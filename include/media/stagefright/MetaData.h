@@ -130,7 +130,9 @@ enum {
     kKeyTextFormatData    = 'text',  // raw data
 
     kKeyRequiresSecureBuffers = 'secu',  // bool (int32_t)
-
+#ifdef OMAP_ENHANCEMENT
+    kKeyVideoFPS          = 'vfps', // int32_t
+#endif
     kKeyIsADTS            = 'adts',  // bool (int32_t)
 
     // If a MediaBuffer's data represents (at least partially) encrypted
