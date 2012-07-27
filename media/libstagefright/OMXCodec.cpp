@@ -46,6 +46,7 @@
 #ifdef OMAP_ENHANCEMENT
 #include <OMX_TI_Video.h>
 #include <OMX_TI_Index.h>
+#include <OMX_TI_IVCommon.h>
 #include <ctype.h>
 #endif
 
