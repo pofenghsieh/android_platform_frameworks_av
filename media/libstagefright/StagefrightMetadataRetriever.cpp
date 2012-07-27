@@ -292,9 +292,9 @@ static VideoFrame *extractVideoFrameWithCodecFlags(
     int32_t buff_layout;
     CHECK(meta->findInt32(kKeyBufferLayout, &buff_layout));
 
-    if ((OMX_INTERLACETYPE)buff_layout != OMX_InterlaceFrameProgressive) {
-        if (((OMX_INTERLACETYPE)buff_layout != OMX_InterlaceInterleaveFrameTopFieldFirst) &&
-            ((OMX_INTERLACETYPE)buff_layout != OMX_InterlaceInterleaveFrameBottomFieldFirst)) {
+    if ((OMX_TI_INTERLACETYPE)buff_layout != OMX_InterlaceFrameProgressive) {
+        if (((OMX_TI_INTERLACETYPE)buff_layout != OMX_InterlaceInterleaveFrameTopFieldFirst) &&
+            ((OMX_TI_INTERLACETYPE)buff_layout != OMX_InterlaceInterleaveFrameBottomFieldFirst)) {
             /* incase of top/bottom fields separated, the crop
             * values are communicated for field, not the entire frame
             */
@@ -314,7 +314,7 @@ static VideoFrame *extractVideoFrameWithCodecFlags(
             (const uint8_t *)buffer->data() + buffer->range_offset(),
             width, height,
             crop_left, crop_top, crop_right, crop_bottom,
-            (OMX_INTERLACETYPE)buff_layout,
+            (OMX_TI_INTERLACETYPE)buff_layout,
             frame->mData,
             frame->mWidth,
             frame->mHeight,
