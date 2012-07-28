@@ -236,14 +236,16 @@ AwesomePlayer::AwesomePlayer()
       mVideoScalingMode(NATIVE_WINDOW_SCALING_MODE_SCALE_TO_WINDOW),
       mFlags(0),
       mExtractorFlags(0),
-#ifdef OMAP_ENHANCEMENT
-      mExtractorType(NULL),
-      mExtractor(NULL),
-#endif
       mVideoBuffer(NULL),
       mDecryptHandle(NULL),
       mLastVideoTimeUs(-1),
+#ifdef OMAP_ENHANCEMENT
+      mTextDriver(NULL),
+      mExtractor(NULL),
+      mExtractorType(NULL) {
+#else
       mTextDriver(NULL) {
+#endif
     CHECK_EQ(mClient.connect(), (status_t)OK);
 
     DataSource::RegisterDefaultSniffers();
