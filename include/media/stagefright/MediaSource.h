@@ -124,6 +124,12 @@ public:
     virtual status_t setParameter(const String8 &key, const String8 &value){
         return OK;
     }
+
+    virtual bool haveDeltaTable() const {
+        // Assume true by default.
+        // This means extractor can set presentation time correctly.
+        return true;
+    }
 #endif
 
 };
