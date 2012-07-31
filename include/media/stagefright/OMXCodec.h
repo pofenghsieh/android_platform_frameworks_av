@@ -60,6 +60,11 @@ struct OMXCodec : public MediaSource,
 
         // Secure decoding mode
         kUseSecureInputBuffers = 256,
+
+#ifdef OMAP_ENHANCEMENT
+        // To request codec to return frames in decode order
+        kEnableTimeStampInDecodeOrder         = 512,
+#endif
     };
     static sp<MediaSource> Create(
             const sp<IOMX> &omx,
