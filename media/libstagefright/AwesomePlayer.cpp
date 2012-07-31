@@ -1558,7 +1558,7 @@ status_t AwesomePlayer::initVideoDecoder(uint32_t flags) {
 #ifdef OMAP_ENHANCEMENT
     sp<MetaData> fileMetadata = mExtractor->getMetaData();
     bool isAvailable = fileMetadata->findCString(kKeyMIMEType, &mExtractorType);
-    if (isAvailable &&
+    if ((!mVideoTrack->haveDeltaTable()) || isAvailable &&
         (!strcasecmp(MEDIA_MIMETYPE_CONTAINER_AVI, mExtractorType))) {
             flags |= OMXCodec::kEnableTimeStampInDecodeOrder;
     }

@@ -98,6 +98,13 @@ private:
 
     MPEG4Source(const MPEG4Source &);
     MPEG4Source &operator=(const MPEG4Source &);
+
+#ifdef OMAP_ENHANCEMENT
+public:
+    bool haveDeltaTable() const {
+        return mSampleTable == NULL ? false : mSampleTable->haveDeltaTable();
+    }
+#endif
 };
 
 // This custom data source wraps an existing one and satisfies requests
