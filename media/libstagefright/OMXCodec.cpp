@@ -521,6 +521,32 @@ status_t OMXCodec::configureCodec(const sp<MetaData> &meta) {
             CHECK(meta->findData(kKeyVorbisBooks, &type, &data, &size));
             addCodecSpecificData(data, size);
         }
+
+#ifdef OMAP_ENHANCEMENT
+        if(mFlags & kEnableTimeStampInDecodeOrder) {
+            /* For WMV, AVI clips no CTTS structure available to support b-frames.
+             * Hecne request codec to order frames as per decode order  */
+
+            OMX_INDEXTYPE index;
+            status_t err = mOMX->getExtensionIndex(
+                        mNode,
+                        (OMX_STRING) "OMX_TI_IndexParamTimeStampInDecodeOrder",
+                        &index);
+
+            CODEC_LOGV("for %s clip, got OMX_TI_IndexParamTimeStampInDecodeOrder \
+                index as 0x%x err 0x%x",mMIME, index, err);
+
+            if (err == OK) {
+                OMX_TI_PARAM_TIMESTAMP_IN_DECODE_ORDER params;
+                InitOMXParams(&params);
+                params.bEnabled = OMX_TRUE;
+                err = mOMX->setParameter(
+                                mNode, index, &params, sizeof(params));
+                CODEC_LOGV("OMX_SetParameter() status for  \
+                    OMX_TI_PARAM_TIMESTAMP_IN_DECODE_ORDER: 0x%08x", err);
+            }
+        }
+#endif
     }
 
     int32_t bitRate = 0;
