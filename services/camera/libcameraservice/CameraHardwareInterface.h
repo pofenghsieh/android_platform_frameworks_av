@@ -103,6 +103,16 @@ public:
             ALOGE("Could not open camera %s: %d", mName.string(), rc);
             return rc;
         }
+
+#ifdef OMAP_ENHANCEMENT
+        memset(&mDeviceExtendedOps, 0, sizeof(mDeviceExtendedOps));
+        if (mDevice->ops->send_command) {
+            int32_t arg1, arg2;
+            camera_cmd_send_command_pointer_to_args(&mDeviceExtendedOps, &arg1, &arg2);
+            mDevice->ops->send_command(mDevice, CAMERA_CMD_SETUP_EXTENDED_OPERATIONS, arg1, arg2);
+        }
+#endif
+
         initHalPreviewWindow();
         return rc;
     }
@@ -438,6 +448,10 @@ public:
 private:
     camera_device_t *mDevice;
     String8 mName;
+
+#ifdef OMAP_ENHANCEMENT
+    camera_device_extended_ops_t mDeviceExtendedOps;
+#endif
 
     static void __notify_cb(int32_t msg_type, int32_t ext1,
                             int32_t ext2, void *user)
