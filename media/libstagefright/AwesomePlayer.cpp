@@ -1475,17 +1475,6 @@ status_t AwesomePlayer::initAudioDecoder() {
 
     if (!strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_RAW)) {
         mAudioSource = mAudioTrack;
-#ifdef OMAP_ENHANCEMENT
-    } else if (!strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_WMA)) {
-        const char *componentName  = "OMX.ITTIAM.WMA.decode";
-        mAudioSource = OMXCodec::Create(
-        mClient.interface(), mAudioTrack->getFormat(),
-        false,
-        mAudioTrack, componentName);
-        if (mAudioSource == NULL) {
-            ALOGE("Failed to create OMX component for WMA codec");
-        }
-#endif
     } else {
         mAudioSource = OMXCodec::Create(
                 mClient.interface(), mAudioTrack->getFormat(),
