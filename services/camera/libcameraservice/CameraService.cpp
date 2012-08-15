@@ -803,7 +803,11 @@ status_t CameraService::Client::cancelAutoFocus() {
 }
 
 // take a picture - image is returned in callback
+#ifdef OMAP_ENHANCEMENT_CPCAM
+status_t CameraService::Client::takePicture(int msgType, const String8& params) {
+#else
 status_t CameraService::Client::takePicture(int msgType) {
+#endif
     LOG1("takePicture (pid %d): 0x%x", getCallingPid(), msgType);
 
     Mutex::Autolock iLock(mICameraLock);
@@ -837,7 +841,11 @@ status_t CameraService::Client::takePicture(int msgType) {
     }
     enableMsgType(picMsgType);
 
+#ifdef OMAP_ENHANCEMENT_CPCAM
+    return mHardware->takePictureWithParameters(params);
+#else
     return mHardware->takePicture();
+#endif
 }
 
 // set preview/capture parameters - key/value pairs
