@@ -49,6 +49,9 @@ enum {
     RECORDING_ENABLED,
     RELEASE_RECORDING_FRAME,
     STORE_META_DATA_IN_BUFFERS,
+#ifdef OMAP_ENHANCEMENT_CPCAM
+    SET_BUFFER_SOURCE,
+#endif
 };
 
 class BpCamera: public BpInterface<ICamera>
@@ -240,6 +243,7 @@ public:
         remote()->transact(GET_PARAMETERS, data, &reply);
         return reply.readString8();
     }
+
     virtual status_t sendCommand(int32_t cmd, int32_t arg1, int32_t arg2)
     {
         ALOGV("sendCommand");
@@ -273,6 +277,22 @@ public:
         remote()->transact(UNLOCK, data, &reply);
         return reply.readInt32();
     }
+
+#ifdef OMAP_ENHANCEMENT_CPCAM
+    // pass the buffered SurfaceTexture to the camera service
+    // TODO(XX): Find a good name for this tap-in/tap-out buffer source
+    status_t setBufferSource(const sp<ISurfaceTexture>& tapin,
+                             const sp<ISurfaceTexture>& tapout)
+    {
+        ALOGV("setBufferSource");
+        Parcel data, reply;
+        data.writeInterfaceToken(ICamera::getInterfaceDescriptor());
+        data.writeStrongBinder(tapin->asBinder());
+        data.writeStrongBinder(tapout->asBinder());
+        remote()->transact(SET_BUFFER_SOURCE, data, &reply);
+        return reply.readInt32();
+    }
+#endif
 };
 
 IMPLEMENT_META_INTERFACE(Camera, "android.hardware.ICamera");
@@ -406,6 +426,16 @@ status_t BnCamera::onTransact(
             reply->writeInt32(sendCommand(command, arg1, arg2));
             return NO_ERROR;
          } break;
+#ifdef OMAP_ENHANCEMENT_CPCAM
+        case SET_BUFFER_SOURCE: {
+            ALOGV("SET_BUFFER_SOURCE");
+            CHECK_INTERFACE(ICamera, data, reply);
+            sp<ISurfaceTexture> tapin = interface_cast<ISurfaceTexture>(data.readStrongBinder());
+            sp<ISurfaceTexture> tapout = interface_cast<ISurfaceTexture>(data.readStrongBinder());
+            reply->writeInt32(setBufferSource(tapin, tapout));
+            return NO_ERROR;
+        } break;
+#endif
         case CONNECT: {
             CHECK_INTERFACE(ICamera, data, reply);
             sp<ICameraClient> cameraClient = interface_cast<ICameraClient>(data.readStrongBinder());

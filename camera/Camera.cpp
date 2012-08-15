@@ -417,6 +417,21 @@ void Camera::dataCallbackTimestamp(nsecs_t timestamp, int32_t msgType, const sp<
     }
 }
 
+#ifdef OMAP_ENHANCEMENT_CPCAM
+// pass the buffered ISurfaceTexture to the camera service
+status_t Camera::setBufferSource(const sp<ISurfaceTexture>& tapin,
+                                 const sp<ISurfaceTexture>& tapout)
+{
+    ALOGV("setBufferSource(%p,%p)", tapin.get(), tapout.get());
+    sp <ICamera> c = mCamera;
+    if (c == 0) return NO_INIT;
+    if (tapin == 0 && tapout == 0) {
+        ALOGD("app passed NULL surface");
+    }
+    return c->setBufferSource(tapin, tapout);
+}
+#endif
+
 void Camera::binderDied(const wp<IBinder>& who) {
     ALOGW("ICamera died");
     notifyCallback(CAMERA_MSG_ERROR, CAMERA_ERROR_SERVER_DIED, 0);
