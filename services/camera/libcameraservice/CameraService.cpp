@@ -853,6 +853,22 @@ status_t CameraService::Client::takePicture(int msgType) {
     enableMsgType(picMsgType);
 
 #ifdef OMAP_ENHANCEMENT_CPCAM
+    // make sure the other capture messages are disabled
+    picMsgType = ~picMsgType &
+                 (CAMERA_MSG_SHUTTER |
+                  CAMERA_MSG_POSTVIEW_FRAME |
+                  CAMERA_MSG_RAW_IMAGE |
+                  CAMERA_MSG_RAW_IMAGE_NOTIFY |
+                  CAMERA_MSG_COMPRESSED_IMAGE |
+#ifdef OMAP_ENHANCEMENT_BURST_CAPTURE
+                  CAMERA_MSG_RAW_BURST |
+                  CAMERA_MSG_COMPRESSED_BURST_IMAGE |
+#endif
+                  CAMERA_MSG_RAW_IMAGE_NOTIFY);
+    disableMsgType(picMsgType);
+#endif
+
+#ifdef OMAP_ENHANCEMENT_CPCAM
     return mHardware->takePictureWithParameters(params);
 #else
     return mHardware->takePicture();
@@ -1018,6 +1034,55 @@ status_t CameraService::Client::setBufferSource(
     }
 
     return result;
+}
+
+// reprocess - image is returned in callback
+status_t CameraService::Client::reprocess(int msgType, const String8& params) {
+    LOG1("reprocess (pid %d): 0x%x", getCallingPid(), msgType);
+
+    Mutex::Autolock lock(mLock);
+    status_t result = checkPidAndHardware();
+    if (result != NO_ERROR) return result;
+
+    if ((msgType & CAMERA_MSG_RAW_IMAGE) &&
+        (msgType & CAMERA_MSG_RAW_IMAGE_NOTIFY)) {
+        ALOGE("CAMERA_MSG_RAW_IMAGE and CAMERA_MSG_RAW_IMAGE_NOTIFY"
+                " cannot be both enabled");
+        return BAD_VALUE;
+    }
+
+    // We only accept picture related message types
+    // and ignore other types of messages for takePicture().
+    int picMsgType = msgType
+                        & (CAMERA_MSG_SHUTTER |
+                           CAMERA_MSG_POSTVIEW_FRAME |
+                           CAMERA_MSG_RAW_IMAGE |
+#ifdef OMAP_ENHANCEMENT_BURST_CAPTURE
+                           CAMERA_MSG_RAW_BURST |
+#endif
+                           CAMERA_MSG_RAW_IMAGE_NOTIFY |
+                           CAMERA_MSG_COMPRESSED_IMAGE);
+
+#ifdef OMAP_ENHANCEMENT_BURST_CAPTURE
+    picMsgType |= CAMERA_MSG_COMPRESSED_BURST_IMAGE;
+#endif
+
+    enableMsgType(picMsgType);
+
+    // make sure the other capture messages are disabled
+    picMsgType = ~picMsgType &
+                 (CAMERA_MSG_SHUTTER |
+                  CAMERA_MSG_POSTVIEW_FRAME |
+                  CAMERA_MSG_RAW_IMAGE |
+                  CAMERA_MSG_RAW_IMAGE_NOTIFY |
+#ifdef OMAP_ENHANCEMENT_BURST_CAPTURE
+                  CAMERA_MSG_RAW_BURST |
+                  CAMERA_MSG_COMPRESSED_BURST_IMAGE |
+#endif
+                  CAMERA_MSG_COMPRESSED_IMAGE);
+    disableMsgType(picMsgType);
+
+    return mHardware->reprocess(params);
 }
 #endif
 

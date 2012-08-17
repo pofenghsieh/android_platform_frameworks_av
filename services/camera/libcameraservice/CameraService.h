@@ -123,6 +123,7 @@ private:
 #ifdef OMAP_ENHANCEMENT_CPCAM
         virtual status_t        setBufferSource(const sp<ISurfaceTexture>& tapin,
                                                 const sp<ISurfaceTexture>& tapout);
+        virtual status_t        reprocess(int msgType, const String8& params);
 #endif
 
     private:
