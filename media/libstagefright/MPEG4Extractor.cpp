@@ -53,7 +53,11 @@ namespace android {
                      (x > MP4_MPEG2Visual422)    ? false : true
 #endif
 
+#ifdef OMAP_ENHANCEMENT
+class MPEG4Source : public MediaSourceWithHaveDeltaTable {
+#else
 class MPEG4Source : public MediaSource {
+#endif
 public:
     // Caller retains ownership of both "dataSource" and "sampleTable".
     MPEG4Source(const sp<MetaData> &format,

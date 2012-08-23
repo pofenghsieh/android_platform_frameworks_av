@@ -124,15 +124,20 @@ public:
     virtual status_t setParameter(const String8 &key, const String8 &value){
         return OK;
     }
+#endif
+};
 
+#ifdef OMAP_ENHANCEMENT
+struct MediaSourceWithHaveDeltaTable : public MediaSource
+{
+public:
     virtual bool haveDeltaTable() const {
         // Assume true by default.
         // This means extractor can set presentation time correctly.
         return true;
     }
-#endif
-
 };
+#endif /* OMAP_ENHANCEMENT */
 
 }  // namespace android
 
