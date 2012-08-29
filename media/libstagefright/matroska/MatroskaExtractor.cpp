@@ -134,6 +134,10 @@ private:
     enum Type {
         AVC,
         AAC,
+#ifdef OMAP_ENHANCEMENT //DOLBY_DDPDEC51
+        AC3,
+        EAC3,
+#endif
         OTHER
     };
 
@@ -186,6 +190,12 @@ MatroskaSource::MatroskaSource(
         ALOGV("mNALSizeLen = %d", mNALSizeLen);
     } else if (!strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_AAC)) {
         mType = AAC;
+#ifdef OMAP_ENHANCEMENT //DOLBY_DDPDEC51
+    } else if (!strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_AC3)) {
+        mType = AC3;
+    } else if (!strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_EC3)) {
+        mType = EAC3;
+#endif
     }
 }
 
@@ -894,6 +904,12 @@ void MatroskaExtractor::addTracks() {
                     addVorbisCodecInfo(meta, codecPrivate, codecPrivateSize);
                 } else if (!strcmp("A_MPEG/L3", codecID)) {
                     meta->setCString(kKeyMIMEType, MEDIA_MIMETYPE_AUDIO_MPEG);
+#ifdef OMAP_ENHANCEMENT //DOLBY_DDPDEC51
+                } else if (!strcmp("A_AC3", codecID)) {
+                    meta->setCString(kKeyMIMEType, MEDIA_MIMETYPE_AUDIO_AC3);
+                } else if (!strcmp("A_EAC3", codecID)) {
+                    meta->setCString(kKeyMIMEType, MEDIA_MIMETYPE_AUDIO_EC3);
+#endif
                 } else {
                     ALOGW("%s is not supported.", codecID);
                     continue;
