@@ -287,6 +287,13 @@ static const char *FourCC2MIME(uint32_t fourcc) {
         case FOURCC('a', 'v', 'c', '1'):
             return MEDIA_MIMETYPE_VIDEO_AVC;
 
+#ifdef OMAP_ENHANCEMENT //DOLBY_DDPDEC51
+        case FOURCC('a', 'c', '-', '3'):
+            return MEDIA_MIMETYPE_AUDIO_AC3;
+        case FOURCC('e', 'c', '-', '3'):
+            return MEDIA_MIMETYPE_AUDIO_EC3;
+#endif
+
         default:
             CHECK(!"should not be here.");
             return NULL;
@@ -1016,6 +1023,10 @@ status_t MPEG4Extractor::parseChunk(off64_t *offset, int depth) {
         case FOURCC('s', 'a', 'w', 'b'):
 #ifdef OMAP_ENHANCEMENT
         case FOURCC('.', 'm', 'p', '3'):
+#endif
+#ifdef OMAP_ENHANCEMENT //DOLBY_DDPDEC51
+        case FOURCC('a', 'c', '-', '3'):
+        case FOURCC('e', 'c', '-', '3'):
 #endif
         {
             uint8_t buffer[8 + 20];

@@ -54,4 +54,9 @@ const char *MEDIA_MIMETYPE_CONTAINER_WVM = "video/wvm";
 const char *MEDIA_MIMETYPE_TEXT_3GPP = "text/3gpp-tt";
 const char *MEDIA_MIMETYPE_TEXT_SUBRIP = "application/x-subrip";
 
+#ifdef OMAP_ENHANCEMENT //DOLBY_DDPDEC51
+const char *MEDIA_MIMETYPE_AUDIO_AC3 = "audio/ac3";
+const char *MEDIA_MIMETYPE_AUDIO_EC3 = "audio/eac3";
+#endif
+
 }  // namespace android

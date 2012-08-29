@@ -18,6 +18,10 @@
 
 #define AUDIO_PLAYER_H_
 
+#ifdef OMAP_ENHANCEMENT //DOLBY_DDPDEC51_MULTICHANNEL
+#include "include/TimedEventQueue.h"
+#endif
+
 #include <media/MediaPlayerInterface.h>
 #include <media/stagefright/MediaBuffer.h>
 #include <media/stagefright/TimeSource.h>
@@ -123,6 +127,14 @@ private:
 
     void reset();
 
+#ifdef OMAP_ENHANCEMENT //DOLBY_DDPDEC51_MULTICHANNEL
+    void onPortSettingsChangedEvent();
+    TimedEventQueue mQueue;
+    bool mQueueStarted;
+    sp<TimedEventQueue::Event> mPortSettingsChangedEvent;
+    bool mPortSettingsChangedEventPending;
+    int reOpenSink(int numChannels, int channelMask);
+#endif
     uint32_t getNumFramesPendingPlayout() const;
 
     AudioPlayer(const AudioPlayer &);
