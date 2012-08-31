@@ -46,6 +46,9 @@
 #include <media/stagefright/SurfaceUtils.h>
 #include <media/hardware/HardwareAPI.h>
 
+#include <media/AudioParameter.h>
+#include <media/AudioSystem.h>
+
 #include <OMX_AudioExt.h>
 #include <OMX_VideoExt.h>
 #include <OMX_Component.h>
@@ -4198,6 +4201,18 @@ status_t ACodec::getPortFormat(OMX_U32 portIndex, sp<AMessage> &notify) {
                     if (mChannelMaskPresent) {
                         notify->setInt32("channel-mask", mChannelMask);
                     }
+
+#ifdef OMAP_ENHANCEMENT
+                    AudioParameter param = AudioParameter();
+                    uint32_t mapping = 0;
+
+                    for (uint32_t i = 0; i < params.nChannels; i++) {
+                        mapping |= params.eChannelMapping[i] << (4 * i);
+                    }
+
+                    param.addInt(String8("channel_map"), mapping);
+                    AudioSystem::setParameters(0, param.toString());
+#endif
                     break;
                 }
 
