@@ -104,6 +104,10 @@ LOCAL_STATIC_LIBRARIES := \
         libFLAC \
         libmedia_helper
 
+ifdef OMAP_ENHANCEMENT
+LOCAL_STATIC_LIBRARIES += libmedia_helper
+endif
+
 LOCAL_SRC_FILES += \
         chromium_http_stub.cpp
 LOCAL_CPPFLAGS += -DCHROMIUM_AVAILABLE=1
