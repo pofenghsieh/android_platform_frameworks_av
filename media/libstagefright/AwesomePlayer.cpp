@@ -237,6 +237,7 @@ AwesomePlayer::AwesomePlayer()
       mDecryptHandle(NULL),
       mLastVideoTimeUs(-1),
 #ifdef OMAP_ENHANCEMENT
+      mInitialBufferRead(true),
       mTextDriver(NULL),
       mExtractorType(NULL) {
 #else
@@ -1708,6 +1709,20 @@ void AwesomePlayer::onVideoEvent() {
                     mSeeking == SEEK_VIDEO_ONLY
                         ? MediaSource::ReadOptions::SEEK_NEXT_SYNC
                         : MediaSource::ReadOptions::SEEK_CLOSEST_SYNC);
+
+#ifdef OMAP_ENHANCEMENT
+            if (mInitialBufferRead) {
+                mInitialBufferRead = false;
+
+                MediaBuffer *videoBuffer = NULL;
+                if (mVideoSource->read(&videoBuffer) == UNKNOWN_ERROR) {
+                    ALOGW("S3D Workaround: Extra read failed!");
+                }
+                if (videoBuffer != NULL) {
+                    videoBuffer->release();
+                }
+            }
+#endif
         }
         for (;;) {
             status_t err = mVideoSource->read(&mVideoBuffer, &options);
