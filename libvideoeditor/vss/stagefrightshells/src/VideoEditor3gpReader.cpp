@@ -1019,6 +1019,10 @@ M4OSA_ERR VideoEditor3gpReader_getNextAu(M4OSA_Context context,
                 if (mMediaBuffer != NULL) {
                     ALOGV("VideoEditor3gpReader_getNextAu free the MediaBuffer");
                     mMediaBuffer->release();
+#ifdef OMAP_ENHANCEMENT
+                    /* reset the pointer after release before using it again */
+                    mMediaBuffer=NULL;
+#endif
                 }
                 error = pC->mVideoSource->read(&mMediaBuffer, &options);
                 ALOGV("VE3gpReader_getNextAu MediaBuffer %x , error %d",
