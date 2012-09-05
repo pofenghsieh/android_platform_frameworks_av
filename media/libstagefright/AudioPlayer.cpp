@@ -603,6 +603,14 @@ int64_t AudioPlayer::latency() const
 }
 #endif
 
+#if defined(OMAP_ENHANCEMENT) && defined(OMAP_TIME_INTERPOLATOR)
+void AudioPlayer::forcibly_update_audio_clocks_read_pointer()
+{
+    Mutex::Autolock lock(mLock);
+    mRealTimeInterpolator->forcibly_update_read_pointer(mPositionTimeMediaUs);
+}
+#endif
+
 bool AudioPlayer::getMediaTimeMapping(
         int64_t *realtime_us, int64_t *mediatime_us) {
     Mutex::Autolock autoLock(mLock);

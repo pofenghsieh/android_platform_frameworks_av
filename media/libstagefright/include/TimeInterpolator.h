@@ -46,6 +46,7 @@ public:
         return m_read + m_queued;
     }
     void set_latency(int64_t lat_usecs);
+    void forcibly_update_read_pointer(int64_t media_time);
 
     /* See docs on set_state() for state progression */
     typedef enum {

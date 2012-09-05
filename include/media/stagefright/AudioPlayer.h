@@ -132,6 +132,7 @@ private:
     sp<TimeInterpolator> mRealTimeInterpolator;
 public:
     int64_t latency() const;
+    void forcibly_update_audio_clocks_read_pointer();
 #endif
 };
 

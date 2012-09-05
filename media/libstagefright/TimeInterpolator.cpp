@@ -582,4 +582,9 @@ void TimeInterpolator::err_overrun()
     }
 }
 
+void TimeInterpolator::forcibly_update_read_pointer(int64_t read_pointer)
+{
+    m_read = read_pointer - m_queued;
+}
+
 } /* namespace android */
