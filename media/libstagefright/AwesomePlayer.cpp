@@ -1830,6 +1830,14 @@ void AwesomePlayer::onVideoEvent() {
         mTimeSourceDeltaUs = realTimeUs - mediaTimeUs;
     }
 
+#if defined(OMAP_ENHANCEMENT) && defined(OMAP_TIME_INTERPOLATOR)
+    if (mTimeSourceDeltaUs > 80000 || mTimeSourceDeltaUs < -80000) {
+        if (mAudioPlayer != NULL) {
+            mAudioPlayer->forcibly_update_audio_clocks_read_pointer();
+        }
+    }
+#endif
+
     if (wasSeeking == SEEK_VIDEO_ONLY) {
         int64_t nowUs = ts->getRealTimeUs() - mTimeSourceDeltaUs;
 
