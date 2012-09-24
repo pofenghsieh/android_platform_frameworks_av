@@ -109,6 +109,10 @@ LOCAL_STATIC_LIBRARIES := \
         libstagefright_id3 \
         libFLAC \
 
+ifdef OMAP_ENHANCEMENT
+LOCAL_STATIC_LIBRARIES += libmedia_helper
+endif
+
 ifneq ($(TARGET_BUILD_PDK), true)
 LOCAL_STATIC_LIBRARIES += \
 	libstagefright_chromium_http
