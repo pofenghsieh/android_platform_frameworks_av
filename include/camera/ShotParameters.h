@@ -43,6 +43,21 @@ public:
     static const char KEY_EXP_COMPENSATION[];
     static const char KEY_FLUSH_CONFIG[];
 
+    // Name of tap-out surface to be used for this shot config
+    // Associated tap-out surface must first be passed to HAL via
+    // SetBufferSource
+    // If a tap-out surface is not specified for a shot config, HAL
+    // will allocate the buffers and pass to application via
+    // legacy dataCallbacks
+    static const char KEY_CURRENT_TAP_OUT[];
+
+    // Name of tap-in surface for this shot config
+    // Associated tap-in surface must first be passed to HAL via
+    // SetBufferSource before using it.
+    // A tap-in surface must be specified when issuing a reprocess
+    // command
+    static const char KEY_CURRENT_TAP_IN[];
+
     // Values for boolean type parameters
     static const char TRUE[];
     static const char FALSE[];
