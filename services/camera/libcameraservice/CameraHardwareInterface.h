@@ -146,6 +146,7 @@ public:
             mPreviewStreamExtendedOps.update_and_get_buffer = __update_and_get_buffer;
             mPreviewStreamExtendedOps.get_buffer_dimension = __get_buffer_dimension;
             mPreviewStreamExtendedOps.get_buffer_format = __get_buffer_format;
+            mPreviewStreamExtendedOps.get_buffer_count = __get_buffer_count;
             mPreviewStreamExtendedOps.get_id = __get_id;
             mPreviewStreamExtendedOps.set_metadata = __set_metadata;
 #endif
@@ -938,6 +939,12 @@ private:
     {
         ANativeWindow *a = anw(w);
         return a->query(a, NATIVE_WINDOW_FORMAT, format);
+    }
+
+    static int __get_buffer_count(struct preview_stream_ops *w,
+                                   int *count) {
+        ANativeWindow *a = anw(w);
+        return a->query(a, NATIVE_WINDOW_BUFFER_COUNT, count);
     }
 
     static int __get_id(struct preview_stream_ops *w,
