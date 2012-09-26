@@ -140,14 +140,6 @@ private:
     sp<IBinder>                     mSurface;
     sp<ANativeWindow>               mPreviewWindow;
 
-#ifdef OMAP_ENHANCEMENT_CPCAM
-    // This is a binder of Surface or SurfaceTexture.
-    sp<IBinder>                     mTapin;
-    sp<ANativeWindow>               mTapinClient;
-    sp<IBinder>                     mTapout;
-    sp<ANativeWindow>               mTapoutClient;
-#endif
-
     // If the user want us to return a copy of the preview frame (instead
     // of the original one), we allocate mPreviewBuffer and reuse it if possible.
     sp<MemoryHeapBase>              mPreviewBuffer;
