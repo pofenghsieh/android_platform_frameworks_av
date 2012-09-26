@@ -146,6 +146,7 @@ public:
             mPreviewStreamExtendedOps.update_and_get_buffer = __update_and_get_buffer;
             mPreviewStreamExtendedOps.get_buffer_dimension = __get_buffer_dimension;
             mPreviewStreamExtendedOps.get_buffer_format = __get_buffer_format;
+            mPreviewStreamExtendedOps.get_id = __get_id;
             mPreviewStreamExtendedOps.set_metadata = __set_metadata;
 #endif
             if (mDeviceExtendedOps.set_extended_preview_ops) {
@@ -878,6 +879,22 @@ private:
     {
         ANativeWindow *a = anw(w);
         return a->query(a, NATIVE_WINDOW_FORMAT, format);
+    }
+
+    static int __get_id(struct preview_stream_ops *w,
+                               char *name, unsigned int nameSize) {
+        ANativeWindow *a = anw(w);
+
+        String8 id;
+        a->perform(a, NATIVE_WINDOW_GET_ID, &id);
+        if (nameSize > id.length()) {
+            strcpy(name, id.string());
+        } else {
+            strncpy(name, id.string(), nameSize);
+            *(name + nameSize - 1) = '\0';
+            ALOGE("%s: ID truncated to \"%s\"", __FUNCTION__, name);
+        }
+        return OK;
     }
 
     static int __set_metadata(struct preview_stream_ops *w,
