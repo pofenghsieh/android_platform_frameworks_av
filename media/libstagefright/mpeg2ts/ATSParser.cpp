@@ -531,24 +531,41 @@ status_t ATSParser::Stream::parse(
 
     mExpectedContinuityCounter = (continuity_counter + 1) & 0x0f;
 
+#ifdef OMAP_ENHANCEMENT
+    status_t err = OK;
+#endif
+
     if (payload_unit_start_indicator) {
         if (mPayloadStarted) {
             // Otherwise we run the danger of receiving the trailing bytes
             // of a PES packet that we never saw the start of and assuming
             // we have a a complete PES packet.
 
+#ifdef OMAP_ENHANCEMENT
+            // if ERROR_MALFORMED was detected, just skip it.
+            err = flush();
+
+            if (err != OK && err != ERROR_MALFORMED) {
+                return err;
+            }
+#else
             status_t err = flush();
 
             if (err != OK) {
                 return err;
             }
+#endif
         }
 
         mPayloadStarted = true;
     }
 
     if (!mPayloadStarted) {
+#ifdef OMAP_ENHANCEMENT
+        return err;
+#else
         return OK;
+#endif
     }
 
     size_t payloadSizeBits = br->numBitsLeft();
@@ -570,7 +587,11 @@ status_t ATSParser::Stream::parse(
     memcpy(mBuffer->data() + mBuffer->size(), br->data(), payloadSizeBits / 8);
     mBuffer->setRange(0, mBuffer->size() + payloadSizeBits / 8);
 
+#ifdef OMAP_ENHANCEMENT
+        return err;
+#else
     return OK;
+#endif
 }
 
 bool ATSParser::Stream::isVideo() const {
