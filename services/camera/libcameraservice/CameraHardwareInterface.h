@@ -149,6 +149,8 @@ public:
             mPreviewStreamExtendedOps.get_buffer_count = __get_buffer_count;
             mPreviewStreamExtendedOps.get_id = __get_id;
             mPreviewStreamExtendedOps.set_metadata = __set_metadata;
+            mPreviewStreamExtendedOps.get_crop = __get_crop;
+            mPreviewStreamExtendedOps.get_current_size = __get_current_size;
 #endif
             if (mDeviceExtendedOps.set_extended_preview_ops) {
                 mDeviceExtendedOps.set_extended_preview_ops(mDevice, &mPreviewStreamExtendedOps);
@@ -969,6 +971,28 @@ private:
         ANativeWindow *a = anw(w);
         sp<CameraHeapMemory> mem = static_cast<CameraHeapMemory *>(metadata->handle);
         return native_window_set_buffers_metadata(a, mem->mBuffers[0].get());
+    }
+
+    static int __get_crop(struct preview_stream_ops *w,
+                      int *left, int *top, int *right, int *bottom)
+    {
+        ANativeWindow *a = anw(w);
+        android_native_rect_t crop;
+        int res = native_window_get_crop(a, &crop);
+        *left = crop.left ;
+        *top = crop.top;
+        *right = crop.right;
+        *bottom = crop.bottom;
+        return res;
+    }
+
+    static int __get_current_size(struct preview_stream_ops *w,
+                      int *width, int *height)
+    {
+        ANativeWindow *a = anw(w);
+        a->query(a, NATIVE_WINDOW_CURRENT_WIDTH, width);
+        a->query(a, NATIVE_WINDOW_CURRENT_HEIGHT, height);
+        return NO_ERROR;
     }
 
     struct camera_preview_window;
