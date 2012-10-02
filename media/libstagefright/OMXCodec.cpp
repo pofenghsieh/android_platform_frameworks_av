@@ -4674,8 +4674,12 @@ void OMXCodec::initOutputFormat(const sp<MetaData> &inputFormat) {
 #ifdef OMAP_ENHANCEMENT
                 AudioParameter param = AudioParameter();
                 unsigned int mapping = 0;
-                int x = 0;
-                for(x = 0; x < (int)numChannels; x++) {
+                int x = 0, mapped_channels = 0;
+                if ((int)numChannels > params.nChannels)
+                    mapped_channels = numChannels;
+                else
+                    mapped_channels = params.nChannels;
+                for(x = 0; x < mapped_channels; x++) {
                     mapping = mapping |  params.eChannelMapping[x] << 4*(x);
                 }
                 param.addInt(String8("channel_map"),mapping);
