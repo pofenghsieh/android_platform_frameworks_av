@@ -521,7 +521,7 @@ public:
         return index;
     }
 
-    /** Set the ANativeWindow to which preview frames are sent */
+    /** Set buffer sources to which image frames are sent/received */
     status_t setBufferSource(const sp<ANativeWindow>& tapin,
                              const sp<ANativeWindow>& tapout)
     {
@@ -581,6 +581,65 @@ public:
                 if (tapout_win) tapout_ops = &tapout_win->nw;
             }
             err = mDeviceExtendedOps.set_buffer_source(mDevice, tapin_ops, tapout_ops);
+            return err;
+        }
+        return INVALID_OPERATION;
+    }
+
+    /** Release buffer sources previously set by setBufferSource() */
+    status_t releaseBufferSource(const sp<ANativeWindow>& tapin,
+                                 const sp<ANativeWindow>& tapout)
+    {
+        ALOGV("%s(%s) in %p", __FUNCTION__, mName.string(), tapin.get());
+        ALOGV("%s(%s) out %p", __FUNCTION__, mName.string(), tapout.get());
+        if (mDeviceExtendedOps.release_buffer_source) {
+            preview_stream_ops *tapin_ops = 0, *tapout_ops = 0;
+            sp<ANativeWindow> tapinNWindow, tapoutNWindow;
+            status_t err;
+            if (tapin.get()) {
+                int i = findWindow(mHalTapins, tapin.get());
+                if (i < 0) {
+                    ALOGE("Tap in %p not found in list", tapin.get());
+                } else {
+                    int sp_idx = 0;
+                    int tapin_size = mHalTapins.size();
+                    struct camera_preview_window *tapin_win = mHalTapins.itemAt(i);
+                    tapin_ops = &tapin_win->nw;
+                    size_t removed_idx = mHalTapins.removeAt(i);
+                    ALOGE_IF((int)removed_idx != i, "Tap in removed_idx is %u instead of %u", removed_idx, i);
+                    tapinNWindow = mTapins[i];
+                    for (sp_idx = i; sp_idx < tapin_size; sp_idx++) {
+                        ALOGV("Overwtite tap in %d %p->%p", sp_idx, mTapins[sp_idx + 1].get(), mTapins[sp_idx].get());
+                        mTapins[sp_idx] = mTapins[sp_idx + 1];
+                    }
+                    ALOGV("Overwtite tap in %d NULL->%p", sp_idx, mTapins[sp_idx].get());
+                    mTapins[sp_idx] = 0;
+                }
+            }
+
+            if (tapout.get()) {
+                int i = findWindow(mHalTapouts, tapout.get());
+                if (i < 0) {
+                    ALOGE("Tap out %p not found in list", tapout.get());
+                } else {
+                    int sp_idx = 0;
+                    int tapout_size = mHalTapouts.size();
+                    struct camera_preview_window *tapout_win = mHalTapouts.itemAt(i);
+                    tapout_ops = &tapout_win->nw;
+                    size_t removed_idx = mHalTapouts.removeAt(i);
+                    ALOGE_IF((int)removed_idx != i, "Tap out removed_idx is %u instead of %u", removed_idx, i);
+                    tapoutNWindow = mTapouts[i];
+                    for (sp_idx = i; sp_idx < tapout_size; sp_idx++) {
+                        ALOGV("Overwtite tap out %d %p->%p", sp_idx, mTapouts[sp_idx + 1].get(), mTapouts[sp_idx].get());
+                        mTapouts[sp_idx] = mTapouts[sp_idx + 1];
+                    }
+                    ALOGV("Overwtite tap out %d NULL->%p", sp_idx, mTapouts[sp_idx].get());
+                    mTapouts[sp_idx] = 0;
+                }
+            }
+            err = mDeviceExtendedOps.release_buffer_source(mDevice, tapin_ops, tapout_ops);
+            tapinNWindow.clear();
+            tapoutNWindow.clear();
             return err;
         }
         return INVALID_OPERATION;
