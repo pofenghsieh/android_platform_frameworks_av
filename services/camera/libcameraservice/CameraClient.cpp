@@ -680,7 +680,7 @@ status_t CameraClient::sendCommand(int32_t cmd, int32_t arg1, int32_t arg2) {
 }
 
 #ifdef OMAP_ENHANCEMENT_CPCAM
-// set the SurfaceTexture that the preview will use
+// buffer sources to be used for image capture
 status_t CameraClient::setBufferSource(
         const sp<ISurfaceTexture>& tapin,
         const sp<ISurfaceTexture>& tapout) {
@@ -757,6 +757,36 @@ status_t CameraClient::reprocess(int msgType, const String8& params) {
     disableMsgType(picMsgType);
 
     return mHardware->reprocess(params);
+}
+
+// release buffer sources previously set by setBufferSource()
+status_t CameraClient::releaseBufferSource(
+        const sp<ISurfaceTexture>& tapin,
+        const sp<ISurfaceTexture>& tapout) {
+    LOG1("releaseBufferSource(%p,%p) (pid %d)", tapin.get(), tapout.get(),
+            getCallingPid());
+
+    sp<ANativeWindow> window_tapin, window_tapout;
+    status_t result = NO_ERROR;
+
+    Mutex::Autolock lock(mLock);
+
+    if (tapin != 0) {
+        window_tapin = new SurfaceTextureClient(tapin);
+    }
+
+    if (tapout != 0) {
+        window_tapout = new SurfaceTextureClient(tapout);
+    }
+
+    result = checkPidAndHardware();
+    if (result != NO_ERROR) return result;
+
+    if ((window_tapout != 0) || (window_tapin !=0)) {
+        result = mHardware->releaseBufferSource(window_tapin, window_tapout);
+    }
+
+    return result;
 }
 #endif
 

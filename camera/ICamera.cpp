@@ -51,6 +51,7 @@ enum {
     STORE_META_DATA_IN_BUFFERS,
 #ifdef OMAP_ENHANCEMENT_CPCAM
     SET_BUFFER_SOURCE,
+    RELEASE_BUFFER_SOURCE,
     REPROCESS,
 #endif
 };
@@ -280,7 +281,7 @@ public:
     }
 
 #ifdef OMAP_ENHANCEMENT_CPCAM
-    // pass the buffered SurfaceTexture to the camera service
+    // pass buffer sources to the camera service
     // TODO(XX): Find a good name for this tap-in/tap-out buffer source
     status_t setBufferSource(const sp<ISurfaceTexture>& tapin,
                              const sp<ISurfaceTexture>& tapout)
@@ -291,6 +292,22 @@ public:
         data.writeStrongBinder(tapin->asBinder());
         data.writeStrongBinder(tapout->asBinder());
         remote()->transact(SET_BUFFER_SOURCE, data, &reply);
+        return reply.readInt32();
+    }
+
+    // release buffer sources previously set to the camera service
+    // TODO(XX): Find a good name for this tap-in/tap-out buffer source
+    status_t releaseBufferSource(const sp<ISurfaceTexture>& tapin,
+                                 const sp<ISurfaceTexture>& tapout)
+    {
+        ALOGV("releaseBufferSource");
+        Parcel data, reply;
+        data.writeInterfaceToken(ICamera::getInterfaceDescriptor());
+        sp<IBinder> b_i(tapin->asBinder());
+        sp<IBinder> b_o(tapout->asBinder());
+        data.writeStrongBinder(b_i);
+        data.writeStrongBinder(b_o);
+        remote()->transact(RELEASE_BUFFER_SOURCE, data, &reply);
         return reply.readInt32();
     }
 
@@ -447,6 +464,14 @@ status_t BnCamera::onTransact(
             sp<ISurfaceTexture> tapin = interface_cast<ISurfaceTexture>(data.readStrongBinder());
             sp<ISurfaceTexture> tapout = interface_cast<ISurfaceTexture>(data.readStrongBinder());
             reply->writeInt32(setBufferSource(tapin, tapout));
+            return NO_ERROR;
+        } break;
+        case RELEASE_BUFFER_SOURCE: {
+            ALOGV("RELEASE_BUFFER_SOURCE");
+            CHECK_INTERFACE(ICamera, data, reply);
+            sp<ISurfaceTexture> tapin = interface_cast<ISurfaceTexture>(data.readStrongBinder());
+            sp<ISurfaceTexture> tapout = interface_cast<ISurfaceTexture>(data.readStrongBinder());
+            reply->writeInt32(releaseBufferSource(tapin, tapout));
             return NO_ERROR;
         } break;
         case REPROCESS: {

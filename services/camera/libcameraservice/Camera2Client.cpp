@@ -1197,6 +1197,11 @@ status_t Camera2Client::setBufferSource(const sp<ISurfaceTexture>& tapin,
     return INVALID_OPERATION;
 }
 
+status_t Camera2Client::releaseBufferSource(const sp<ISurfaceTexture>& tapin,
+        const sp<ISurfaceTexture>& tapout) {
+    return INVALID_OPERATION;
+}
+
 status_t Camera2Client::reprocess(int msgType, const String8& params) {
     return INVALID_OPERATION;
 }

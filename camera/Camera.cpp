@@ -426,7 +426,7 @@ status_t Camera::reprocess(int msgType, const String8& params)
     return c->reprocess(msgType, params);
 }
 
-// pass the buffered ISurfaceTexture to the camera service
+// pass buffer sources to the camera service
 status_t Camera::setBufferSource(const sp<ISurfaceTexture>& tapin,
                                  const sp<ISurfaceTexture>& tapout)
 {
@@ -437,6 +437,21 @@ status_t Camera::setBufferSource(const sp<ISurfaceTexture>& tapin,
         ALOGD("app passed NULL surface");
     }
     return c->setBufferSource(tapin, tapout);
+}
+
+// release buffer sources previously set to the camera service
+status_t Camera::releaseBufferSource(const sp<ISurfaceTexture>& tapin,
+                                     const sp<ISurfaceTexture>& tapout)
+{
+    ALOGV("releaseBufferSource(%p,%p)", tapin.get(), tapout.get());
+    sp <ICamera> c = mCamera;
+    if (c == 0) return NO_INIT;
+    if ((tapin != 0) || (tapout != 0)) {
+        return c->releaseBufferSource(tapin, tapout);
+    } else {
+        ALOGE("releaseBufferSource: app passed NULL surface");
+        return BAD_VALUE;
+    }
 }
 #endif
 
