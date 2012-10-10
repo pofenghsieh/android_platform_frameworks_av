@@ -34,7 +34,6 @@
 #include "include/WVMExtractor.h"
 
 #ifdef OMAP_ENHANCEMENT
-#include "include/ASFExtractor.h"
 #include "include/AVIExtractor.h"
 #endif
 
@@ -127,9 +126,6 @@ void DataSource::RegisterDefaultSniffers() {
     RegisterSniffer(SniffWVM);
 
 #ifdef OMAP_ENHANCEMENT
-    if(isASFParserAvailable()) {
-        RegisterSniffer(SniffASF);
-    }
     RegisterSniffer(SniffAVI);
 #endif
 
