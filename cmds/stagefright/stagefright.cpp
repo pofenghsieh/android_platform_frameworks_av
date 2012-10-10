@@ -984,9 +984,6 @@ int main(int argc, char **argv) {
 
         Vector<sp<MediaSource> > mediaSources;
         sp<MediaSource> mediaSource;
-#ifdef OMAP_ENHANCEMENT
-        sp<MediaExtractor> extractor;
-#endif
 
         if (isJPEG) {
             mediaSource = new JPEGSource(dataSource);
@@ -1005,9 +1002,7 @@ int main(int argc, char **argv) {
                 mediaSources.push(mediaSource);
             }
         } else {
-#ifndef OMAP_ENHANCEMENT
             sp<MediaExtractor> extractor;
-#endif
 
             if (!strncasecmp("httplive://", filename, 11)) {
                 String8 uri("http://");
