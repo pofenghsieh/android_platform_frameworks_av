@@ -85,6 +85,10 @@
 
 #include "SchedulingPolicyService.h"
 
+#ifdef OMAP_ENHANCEMENT
+#include "postpro_patch_jb.h"
+#endif
+
 // ----------------------------------------------------------------------------
 
 // Note: the following macro is used for extremely verbose logging message.  In
@@ -867,6 +871,11 @@ status_t AudioFlinger::setParameters(audio_io_handle_t ioHandle, const String8& 
     if (ioHandle == 0) {
         Mutex::Autolock _l(mLock);
         status_t final_result = NO_ERROR;
+
+#ifdef OMAP_ENHANCEMENT
+        POSTPRO_PATCH_JB_PARAMS_SET(keyValuePairs);
+#endif
+
         {
             AutoMutex lock(mHardwareLock);
             mHardwareStatus = AUDIO_HW_SET_PARAMETER;
@@ -948,6 +957,10 @@ String8 AudioFlinger::getParameters(audio_io_handle_t ioHandle, const String8& k
 
     if (ioHandle == 0) {
         String8 out_s8;
+
+#ifdef OMAP_ENHANCEMENT
+        POSTPRO_PATCH_JB_PARAMS_GET(keys, out_s8);
+#endif
 
         for (size_t i = 0; i < mAudioHwDevs.size(); i++) {
             char *s;
@@ -2586,6 +2599,10 @@ bool AudioFlinger::PlaybackThread::threadLoop()
 
     acquireWakeLock();
 
+#ifdef OMAP_ENHANCEMENT
+    POSTPRO_PATCH_JB_OUTPROC_PLAY_INIT(this, myName);
+#endif
+
     while (!exitPending())
     {
         cpuStats.sample(myName);
@@ -2732,6 +2749,10 @@ if (mType == MIXER) {
         }
     }
 
+#ifdef OMAP_ENHANCEMENT
+    POSTPRO_PATCH_JB_OUTPROC_PLAY_EXIT(this, myName);
+#endif
+
     releaseWakeLock();
 
     ALOGV("Thread %p type %d exiting", this, mType);
@@ -2783,6 +2804,10 @@ void AudioFlinger::PlaybackThread::threadLoop_write()
     mLastWriteTime = systemTime();
     mInWrite = true;
     int bytesWritten;
+
+#ifdef OMAP_ENHANCEMENT
+    POSTPRO_PATCH_JB_OUTPROC_PLAY_SAMPLES(this, mFormat, mMixBuffer, mixBufferSize, mSampleRate, mChannelCount);
+#endif
 
     // If an NBAIO sink is present, use it to write the normal mixer's submix
     if (mNormalSink != 0) {
@@ -3489,6 +3514,10 @@ bool AudioFlinger::MixerThread::checkForNewParameters_l()
         AudioParameter param = AudioParameter(keyValuePair);
         int value;
 
+#ifdef OMAP_ENHANCEMENT
+        POSTPRO_PATCH_JB_OUTPROC_PLAY_ROUTE(this, param, value);
+#endif
+
         if (param.getInt(String8(AudioParameter::keySamplingRate), value) == NO_ERROR) {
             reconfig = true;
         }
@@ -4058,6 +4087,11 @@ void AudioFlinger::DuplicatingThread::threadLoop_sleepTime()
 
 void AudioFlinger::DuplicatingThread::threadLoop_write()
 {
+
+#ifdef OMAP_ENHANCEMENT
+    POSTPRO_PATCH_JB_OUTPROC_DUPE_SAMPLES(this, mFormat, mMixBuffer, mixBufferSize, mSampleRate, mChannelCount);
+#endif
+
     for (size_t i = 0; i < outputTracks.size(); i++) {
         outputTracks[i]->write(mMixBuffer, writeFrames);
     }
@@ -6064,6 +6098,10 @@ bool AudioFlinger::RecordThread::threadLoop()
     // used to verify we've read at least once before evaluating how many bytes were read
     bool readOnce = false;
 
+#ifdef OMAP_ENHANCEMENT
+    POSTPRO_PATCH_JB_INPROC_INIT(this, gettid(), mFormat);
+#endif
+
     // start recording
     while (!exitPending()) {
 
@@ -6161,6 +6199,10 @@ bool AudioFlinger::RecordThread::threadLoop()
                                 mBytesRead = mInput->stream->read(mInput->stream, mRsmpInBuffer, mInputBytes);
                                 mRsmpInIndex = 0;
                             }
+
+#ifdef OMAP_ENHANCEMENT
+                            POSTPRO_PATCH_JB_INPROC_SAMPLES(this, mFormat, mRsmpInBuffer, mBytesRead, mSampleRate, mChannelCount);
+#endif
                             if (mBytesRead <= 0) {
                                 if ((mBytesRead < 0) && (mActiveTrack->mState == TrackBase::ACTIVE))
                                 {
@@ -6246,6 +6288,10 @@ bool AudioFlinger::RecordThread::threadLoop()
         mActiveTrack.clear();
         mStartStopCond.broadcast();
     }
+
+#ifdef OMAP_ENHANCEMENT
+    POSTPRO_PATCH_JB_INPROC_EXIT(this, gettid(), mFormat);
+#endif
 
     releaseWakeLock();
 
@@ -6576,6 +6622,11 @@ status_t AudioFlinger::RecordThread::getNextBuffer(AudioBufferProvider::Buffer* 
 
     if (framesReady == 0) {
         mBytesRead = mInput->stream->read(mInput->stream, mRsmpInBuffer, mInputBytes);
+
+#ifdef OMAP_ENHANCEMENT
+        POSTPRO_PATCH_JB_INPROC_SAMPLES(this, mFormat, mRsmpInBuffer, mBytesRead, mSampleRate, mChannelCount);
+#endif
+
         if (mBytesRead <= 0) {
             if ((mBytesRead < 0) && (mActiveTrack->mState == TrackBase::ACTIVE)) {
                 ALOGE("RecordThread::getNextBuffer() Error reading audio input");
@@ -6625,6 +6676,10 @@ bool AudioFlinger::RecordThread::checkForNewParameters_l()
         audio_format_t reqFormat = mFormat;
         int reqSamplingRate = mReqSampleRate;
         int reqChannelCount = mReqChannelCount;
+
+#ifdef OMAP_ENHANCEMENT
+        POSTPRO_PATCH_JB_INPROC_ROUTE(this, param, value);
+#endif
 
         if (param.getInt(String8(AudioParameter::keySamplingRate), value) == NO_ERROR) {
             reqSamplingRate = value;
