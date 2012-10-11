@@ -79,7 +79,6 @@ LOCAL_C_INCLUDES += \
     $(TOP)/frameworks/av/libvideoeditor/lvpp \
     $(TOP)/frameworks/av/services/audioflinger \
     $(TOP)/frameworks/native/include/media/editor \
-    $(TOP)/frameworks/native/include/media/openmax \
     $(TOP)/frameworks/native/services/audioflinger
 
 
@@ -98,6 +97,12 @@ LOCAL_CFLAGS += -Wno-multichar \
     -DUSE_STAGEFRIGHT_VIDEOENC \
     -DUSE_STAGEFRIGHT_READERS \
     -DUSE_STAGEFRIGHT_3GPP_READER
+
+ifdef OMAP_ENHANCEMENT
+LOCAL_C_INCLUDES += $(DOMX_PATH)/omx_core/inc
+else
+LOCAL_C_INCLUDES += $(TOP)/frameworks/native/include/media/openmax
+endif
 
 include $(BUILD_SHARED_LIBRARY)
 

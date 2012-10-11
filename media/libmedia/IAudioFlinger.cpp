@@ -70,6 +70,9 @@ enum {
     GET_EFFECT_DESCRIPTOR,
     CREATE_EFFECT,
     MOVE_EFFECTS,
+#ifdef OMAP_ENHANCEMENT
+    SET_FMRX_ACTIVE,
+#endif
     LOAD_HW_MODULE
 };
 
@@ -273,6 +276,17 @@ public:
         remote()->transact(SET_STREAM_MUTE, data, &reply);
         return reply.readInt32();
     }
+
+#ifdef OMAP_ENHANCEMENT
+    virtual status_t setFMRxActive( bool state)
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(IAudioFlinger::getInterfaceDescriptor());
+        data.writeInt32(state);
+        remote()->transact(SET_FMRX_ACTIVE, data, &reply);
+        return reply.readInt32();
+    }
+#endif
 
     virtual float streamVolume(audio_stream_type_t stream, audio_io_handle_t output) const
     {
@@ -791,6 +805,13 @@ status_t BnAudioFlinger::onTransact(
             reply->writeInt32( setStreamMute((audio_stream_type_t) stream, data.readInt32()) );
             return NO_ERROR;
         } break;
+#ifdef OMAP_ENHANCEMENT
+        case SET_FMRX_ACTIVE: {
+            CHECK_INTERFACE(IAudioFlinger, data, reply);
+            reply->writeInt32( setFMRxActive(data.readInt32()) );
+            return NO_ERROR;
+        } break;
+#endif
         case STREAM_VOLUME: {
             CHECK_INTERFACE(IAudioFlinger, data, reply);
             int stream = data.readInt32();

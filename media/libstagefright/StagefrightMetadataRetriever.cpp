@@ -252,6 +252,49 @@ static VideoFrame *extractVideoFrameWithCodecFlags(
             (OMX_COLOR_FORMATTYPE)srcFormat, OMX_COLOR_Format16bitRGB565);
 
     if (converter.isValid()) {
+
+#ifdef OMAP_ENHANCEMENT
+    int32_t buff_layout;
+    CHECK(meta->findInt32(kKeyBufferLayout, &buff_layout));
+
+    if ((OMX_TI_INTERLACETYPE)buff_layout != OMX_InterlaceFrameProgressive) {
+        if (((OMX_TI_INTERLACETYPE)buff_layout != OMX_InterlaceInterleaveFrameTopFieldFirst) &&
+            ((OMX_TI_INTERLACETYPE)buff_layout != OMX_InterlaceInterleaveFrameBottomFieldFirst)) {
+            /* incase of top/bottom fields separated, the crop
+            * values are communicated for field, not the entire frame
+            */
+            if (frame->mData) {
+                delete frame->mData;
+            }
+            frame->mWidth = crop_right - crop_left + 1;
+            frame->mHeight = (crop_bottom - crop_top + 1) * 2; //two fields
+            frame->mDisplayWidth = frame->mWidth;
+            frame->mDisplayHeight = frame->mHeight;
+            frame->mSize = frame->mWidth * frame->mHeight * 2;
+            frame->mData = new uint8_t[frame->mSize];
+            frame->mRotationAngle = rotationAngle;
+        }
+
+        err = converter.convertInterlacedBuffer(
+            (const uint8_t *)buffer->data() + buffer->range_offset(),
+            width, height,
+            crop_left, crop_top, crop_right, crop_bottom,
+            (OMX_TI_INTERLACETYPE)buff_layout,
+            frame->mData,
+            frame->mWidth,
+            frame->mHeight,
+            0, 0, frame->mWidth - 1, frame->mHeight - 1);
+    } else {
+        err = converter.convert(
+            (const uint8_t *)buffer->data() + buffer->range_offset(),
+            width, height,
+            crop_left, crop_top, crop_right, crop_bottom,
+            frame->mData,
+            frame->mWidth,
+            frame->mHeight,
+            0, 0, frame->mWidth - 1, frame->mHeight - 1);
+    }
+#else
         err = converter.convert(
                 (const uint8_t *)buffer->data() + buffer->range_offset(),
                 width, height,
@@ -260,6 +303,7 @@ static VideoFrame *extractVideoFrameWithCodecFlags(
                 frame->mWidth,
                 frame->mHeight,
                 0, 0, frame->mWidth - 1, frame->mHeight - 1);
+#endif
     } else {
         ALOGE("Unable to instantiate color conversion from format 0x%08x to "
               "RGB565",
@@ -345,6 +389,38 @@ VideoFrame *StagefrightMetadataRetriever::getFrameAtTime(
         memcpy(mAlbumArt->mData, data, dataSize);
     }
 
+#ifdef OMAP_ENHANCEMENT
+    const char *filemime;
+    CHECK(fileMeta->findCString(kKeyMIMEType, &filemime));
+    ALOGV("file mime type:%s", filemime);
+    VideoFrame *frame = NULL;
+    bool useHWCodec = 0;
+
+    /* For all the formats except Mpeg2TS/Mpeg2PS, we try with Software decoder
+    first. Currently there is no support for seek in Mpeg2TSExtracto or
+    Mpeg2PSExtractor. Incase of Mpeg2TS  if software decoder fails to decode,
+    the extractor is providing the next available frame instead of seeking back
+    to I-frame. So, incase of Mpeg2TS/Mpeg2PS clips we use hardware decoder
+    for thumbnail generation */
+
+    if ((!strcasecmp(filemime, MEDIA_MIMETYPE_CONTAINER_MPEG2TS))
+        || (!strcasecmp(filemime, MEDIA_MIMETYPE_CONTAINER_MPEG2PS))) {
+            useHWCodec = 1;
+    }
+    if (!useHWCodec) {
+        ALOGV("Trying with s/w codec(NonMpeg2TS/PS clip)");
+        frame =  extractVideoFrameWithCodecFlags(
+           &mClient, trackMeta, source, OMXCodec::kPreferSoftwareCodecs,
+           timeUs, option);
+    }
+    if (frame == NULL) {
+       ALOGV("Software decoder failed to extract thumbnail, "
+           "trying hardware decoder.");
+
+       frame = extractVideoFrameWithCodecFlags(&mClient, trackMeta, source, 0,
+                     timeUs, option);
+    }
+#else
     VideoFrame *frame =
         extractVideoFrameWithCodecFlags(
                 &mClient, trackMeta, source, OMXCodec::kPreferSoftwareCodecs,
@@ -357,6 +433,7 @@ VideoFrame *StagefrightMetadataRetriever::getFrameAtTime(
         frame = extractVideoFrameWithCodecFlags(&mClient, trackMeta, source, 0,
                         timeUs, option);
     }
+#endif
 
     return frame;
 }

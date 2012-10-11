@@ -31,6 +31,14 @@
 #include <utils/String8.h>
 #include <cutils/properties.h>
 
+#ifdef OMAP_ENHANCEMENT
+#include <OMX_TI_IVCommon.h>
+#endif
+
+#ifdef OMAP_ENHANCEMENT_S3D
+#include <ui/S3DFormat.h>
+#endif
+
 namespace android {
 
 static const int64_t CAMERA_SOURCE_TIMEOUT_NS = 3000000000LL;
@@ -326,6 +334,7 @@ status_t CameraSource::configureCamera(
         const char* supportedFrameRates =
                 params->get(CameraParameters::KEY_SUPPORTED_PREVIEW_FRAME_RATES);
         CHECK(supportedFrameRates != NULL);
+#ifndef OMAP_ENHANCEMENT
         ALOGV("Supported frame rates: %s", supportedFrameRates);
         char buf[4];
         snprintf(buf, 4, "%d", frameRate);
@@ -334,7 +343,19 @@ status_t CameraSource::configureCamera(
                 frameRate, supportedFrameRates);
             return BAD_VALUE;
         }
-
+#else
+        const char* extSupportedFrameRates = (params->get("preview-fps-ext-values") != NULL) ?
+                params->get("preview-fps-ext-values") : "";
+        ALOGV("Supported frame rates: %s Extended :%s", supportedFrameRates, extSupportedFrameRates);
+        char buf[4];
+        snprintf(buf, 4, "%d", frameRate);
+        if ((strstr(supportedFrameRates, buf) == NULL) &&
+                (strstr(extSupportedFrameRates, buf)==NULL) ) {
+            ALOGE("Requested frame rate (%d) is not supported: %s extended: %s",
+                    frameRate, supportedFrameRates, extSupportedFrameRates);
+            return BAD_VALUE;
+        }
+#endif
         // The frame rate is supported, set the camera to the requested value.
         params->setPreviewFrameRate(frameRate);
         isCameraParamChanged = true;
@@ -547,6 +568,18 @@ status_t CameraSource::initWithCameraAccess(
     mMeta->setInt32(kKeyStride,      mVideoSize.width);
     mMeta->setInt32(kKeySliceHeight, mVideoSize.height);
     mMeta->setInt32(kKeyFrameRate,   mVideoFrameRate);
+
+#ifdef OMAP_ENHANCEMENT_S3D
+    const char * s3dLayout = params.get("s3d-prv-frame-layout");
+    if (s3dLayout != NULL) {
+        if (!strcmp("ss-full", s3dLayout) || !strcmp("ss-subsampled", s3dLayout)) {
+            mMeta->setInt32(kKeyS3DLayout, eSideBySide);
+        } else if (!strcmp("tb-full", s3dLayout) || !strcmp("tb-subsampled", s3dLayout)) {
+            mMeta->setInt32(kKeyS3DLayout, eTopBottom);
+        }
+    }
+#endif
+
     return OK;
 }
 

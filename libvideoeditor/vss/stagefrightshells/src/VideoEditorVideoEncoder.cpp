@@ -350,6 +350,12 @@ M4OSA_ERR VideoEditorVideoEncoder_getDSI(M4ENCODER_Context pContext,
     metaData->findInt32(kKeySampleRate, &framerate);
     size = (size_t)(stride*height*3)/2;
     inputBuffer = new MediaBuffer(size);
+
+    //Sometimes Garbage input buffers used as a Fake Frame resulted in Encode failure.
+    //Hence we do a memset before sending the buffer to Encoder.
+#ifdef OMAP_ENAHNCEMENT
+    memset(inputBuffer->data(), 0, inputBuffer->size());
+#endif
     inputBuffer->meta_data()->setInt64(kKeyTime, 0);
     nbBuffer = encoderSource->storeBuffer(inputBuffer);
     encoderSource->storeBuffer(NULL); // Signal EOS

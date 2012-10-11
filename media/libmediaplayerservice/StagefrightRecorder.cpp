@@ -68,6 +68,9 @@ static void addBatteryData(uint32_t params) {
 StagefrightRecorder::StagefrightRecorder()
     : mWriter(NULL),
       mOutputFd(-1),
+#ifdef OMAP_ENHANCEMENT
+      mVidEncoder(NULL),
+#endif
       mAudioSource(AUDIO_SOURCE_CNT),
       mVideoSource(VIDEO_SOURCE_LIST_END),
       mStarted(false), mSurfaceMediaSource(NULL) {
@@ -683,6 +686,14 @@ status_t StagefrightRecorder::setParameter(
             return setParamTimeBetweenTimeLapseFrameCapture(
                     1000LL * timeBetweenTimeLapseFrameCaptureMs);
         }
+#ifdef OMAP_ENHANCEMENT
+    } else if ((key == "video-param-insert-i-frame") ||
+               (key == "video-param-nalsize-bytes") ||
+               (key == "video-param-nalsize-macroblocks") ||
+               (key == "video-config-encoding-bitrate") ||
+               (key == "video-config-encoding-framerate")) {
+        return mVidEncoder->setParameter(key, value);
+#endif
     } else {
         ALOGE("setParameter: failed to find key %s", key.string());
     }
@@ -1405,6 +1416,13 @@ status_t StagefrightRecorder::setupVideoEncoder(
         enc_meta->setInt32(kKeyVideoLevel, mVideoEncoderLevel);
     }
 
+#ifdef OMAP_ENHANCEMENT_S3D
+    int32_t s3dLayout;
+    if (meta->findInt32(kKeyS3DLayout, &s3dLayout)) {
+        enc_meta->setInt32(kKeyS3DLayout, s3dLayout);
+    }
+#endif
+
     OMXClient client;
     CHECK_EQ(client.connect(), (status_t)OK);
 
@@ -1491,6 +1509,10 @@ status_t StagefrightRecorder::setupMPEG4Recording(
         if (err != OK) {
             return err;
         }
+
+#ifdef OMAP_ENHANCEMENT
+        mVidEncoder = encoder;
+#endif
 
         writer->addSource(encoder);
         *totalBitRate += videoBitRate;

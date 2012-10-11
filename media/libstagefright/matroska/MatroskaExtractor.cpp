@@ -134,6 +134,10 @@ private:
     enum Type {
         AVC,
         AAC,
+#ifdef OMAP_ENHANCEMENT //DOLBY_DDPDEC51
+        AC3,
+        EAC3,
+#endif
         OTHER
     };
 
@@ -186,6 +190,12 @@ MatroskaSource::MatroskaSource(
         ALOGV("mNALSizeLen = %d", mNALSizeLen);
     } else if (!strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_AAC)) {
         mType = AAC;
+#ifdef OMAP_ENHANCEMENT //DOLBY_DDPDEC51
+    } else if (!strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_AC3)) {
+        mType = AC3;
+    } else if (!strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_EC3)) {
+        mType = EAC3;
+#endif
     }
 }
 
@@ -464,10 +474,24 @@ status_t MatroskaSource::readBlock() {
 
     int64_t timeUs = mBlockIter.blockTimeUs();
 
+#ifdef OMAP_ENHANCEMENT
+    int frameCount = block->GetFrameCount();
+    for (int i = 0; i < frameCount ; ++i) {
+#else
     for (int i = 0; i < block->GetFrameCount(); ++i) {
+#endif
         const mkvparser::Block::Frame &frame = block->GetFrame(i);
 
         MediaBuffer *mbuf = new MediaBuffer(frame.len);
+#ifdef OMAP_ENHANCEMENT
+        /*
+         * according the notes for specification such blocks are invalid,
+         * but some decoders make audio starting from negative values
+         */
+        if (mIsAudio) {
+            timeUs = timeUs < 0 ? 0 : timeUs;
+        }
+#endif
         mbuf->meta_data()->setInt64(kKeyTime, timeUs);
         mbuf->meta_data()->setInt32(kKeyIsSyncFrame, block->IsKey());
 
@@ -484,6 +508,28 @@ status_t MatroskaSource::readBlock() {
 
     mBlockIter.advance();
 
+#ifdef OMAP_ENHANCEMENT
+    if (!mBlockIter.eos() && frameCount > 1) {
+        // For files with lacing enabled, we need to amend they kKeyTime of
+        // each frame so that their kKeyTime are advanced accordingly (instead
+        // of being set to the same value). To do this, we need to find out
+        // the duration of the block using the start time of the next block.
+        int64_t duration = mBlockIter.blockTimeUs() - timeUs;
+        int64_t durationPerFrame = duration / frameCount;
+        int64_t durationRemainder = duration % frameCount;
+
+        // We split duration to each of the frame, distributing the remainder (if any)
+        // to the later frames. The later frames are processed first due to the
+        // use of the iterator for the doubly linked list
+        List<MediaBuffer *>::iterator it = mPendingFrames.end();
+        for (int i = frameCount - 1; i >= 0; --i) {
+            --it;
+            int64_t frameRemainder = durationRemainder >= frameCount - i ? 1 : 0;
+            int64_t frameTimeUs = timeUs + durationPerFrame * i + frameRemainder;
+            (*it)->meta_data()->setInt64(kKeyTime, frameTimeUs);
+        }
+    }
+#endif
     return OK;
 }
 
@@ -858,6 +904,12 @@ void MatroskaExtractor::addTracks() {
                     addVorbisCodecInfo(meta, codecPrivate, codecPrivateSize);
                 } else if (!strcmp("A_MPEG/L3", codecID)) {
                     meta->setCString(kKeyMIMEType, MEDIA_MIMETYPE_AUDIO_MPEG);
+#ifdef OMAP_ENHANCEMENT //DOLBY_DDPDEC51
+                } else if (!strcmp("A_AC3", codecID)) {
+                    meta->setCString(kKeyMIMEType, MEDIA_MIMETYPE_AUDIO_AC3);
+                } else if (!strcmp("A_EAC3", codecID)) {
+                    meta->setCString(kKeyMIMEType, MEDIA_MIMETYPE_AUDIO_EC3);
+#endif
                 } else {
                     ALOGW("%s is not supported.", codecID);
                     continue;

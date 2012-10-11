@@ -129,7 +129,9 @@ enum {
     kKeyTextFormatData    = 'text',  // raw data
 
     kKeyRequiresSecureBuffers = 'secu',  // bool (int32_t)
-
+#ifdef OMAP_ENHANCEMENT
+    kKeyVideoFPS          = 'vfps', // int32_t
+#endif
     kKeyIsADTS            = 'adts',  // bool (int32_t)
 
     // If a MediaBuffer's data represents (at least partially) encrypted
@@ -154,6 +156,14 @@ enum {
     kKeyCryptoKey         = 'cryK',  // uint8_t[16]
     kKeyCryptoIV          = 'cryI',  // uint8_t[16]
     kKeyCryptoMode        = 'cryM',  // int32_t
+
+#ifdef OMAP_ENHANCEMENT
+    kKeyBufferLayout      = 'lout',
+#endif
+#ifdef OMAP_ENHANCEMENT_S3D
+    kKeyS3DLayout         = 's3dl',
+#endif
+
 };
 
 enum {

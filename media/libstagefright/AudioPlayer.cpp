@@ -29,9 +29,36 @@
 #include <media/stagefright/MetaData.h>
 
 #include "include/AwesomePlayer.h"
+#if defined(OMAP_ENHANCEMENT) && defined(OMAP_TIME_INTERPOLATOR)
+#include "include/TimeInterpolator.h"
+#endif
 
 namespace android {
 
+#ifdef OMAP_ENHANCEMENT //DOLBY_DDPDEC51_MULTICHANNEL
+struct AudioPlayerEvent : public TimedEventQueue::Event {
+    AudioPlayerEvent(
+            AudioPlayer *player,
+            void (AudioPlayer::*method)())
+        : mAudioPlayer(player),
+          mMethod(method) {
+    }
+
+protected:
+    virtual ~AudioPlayerEvent() {}
+
+    virtual void fire(TimedEventQueue *queue, int64_t /* now_us */) {
+        (mAudioPlayer->*mMethod)();
+    }
+
+private:
+    AudioPlayer *mAudioPlayer;
+    void (AudioPlayer::*mMethod)();
+
+    AudioPlayerEvent(const AudioPlayerEvent &);
+    AudioPlayerEvent &operator=(const AudioPlayerEvent &);
+};
+#endif
 AudioPlayer::AudioPlayer(
         const sp<MediaPlayerBase::AudioSink> &audioSink,
         bool allowDeepBuffering,
@@ -55,13 +82,28 @@ AudioPlayer::AudioPlayer(
       mAudioSink(audioSink),
       mAllowDeepBuffering(allowDeepBuffering),
       mObserver(observer),
+#if defined(OMAP_ENHANCEMENT) && defined(OMAP_TIME_INTERPOLATOR)
+      mPinnedTimeUs(-1ll),
+      mRealTimeInterpolator(new TimeInterpolator) {
+#ifdef OMAP_ENHANCEMENT //DOLBY_DDPDEC51_MULTICHANNEL
+    mPortSettingsChangedEvent = new AudioPlayerEvent(this, &AudioPlayer::onPortSettingsChangedEvent);
+    mPortSettingsChangedEventPending = false;
+    mQueueStarted = false;
+#endif
+#else
       mPinnedTimeUs(-1ll) {
+#endif
 }
 
 AudioPlayer::~AudioPlayer() {
     if (mStarted) {
         reset();
     }
+#ifdef OMAP_ENHANCEMENT //DOLBY_DDPDEC51_MULTICHANNEL
+    if (mQueueStarted) {
+        mQueue.stop();
+    }
+#endif
 }
 
 void AudioPlayer::setSource(const sp<MediaSource> &source) {
@@ -81,6 +123,12 @@ status_t AudioPlayer::start(bool sourceAlreadyStarted) {
             return err;
         }
     }
+#ifdef OMAP_ENHANCEMENT //DOLBY_DDPDEC51_MULTICHANNEL
+    if (!mQueueStarted) {
+        mQueue.start();
+        mQueueStarted = true;
+    }
+#endif
 
     // We allow an optional INFO_FORMAT_CHANGED at the very beginning
     // of playback, if there is one, getFormat below will retrieve the
@@ -187,6 +235,11 @@ status_t AudioPlayer::start(bool sourceAlreadyStarted) {
         mAudioTrack->start();
     }
 
+#if defined(OMAP_ENHANCEMENT) && defined(OMAP_TIME_INTERPOLATOR)
+    ALOGI("mLatencyUs = %lld", mLatencyUs);
+    mRealTimeInterpolator->set_latency(mLatencyUs);
+#endif
+
     mStarted = true;
     mPinnedTimeUs = -1ll;
 
@@ -203,6 +256,9 @@ void AudioPlayer::pause(bool playPendingSamples) {
             mAudioTrack->stop();
         }
 
+#if defined(OMAP_ENHANCEMENT) && defined(OMAP_TIME_INTERPOLATOR)
+        mRealTimeInterpolator->stop();
+#endif
         mNumFramesPlayed = 0;
         mNumFramesPlayedSysTimeUs = ALooper::GetNowUs();
     } else {
@@ -213,11 +269,18 @@ void AudioPlayer::pause(bool playPendingSamples) {
         }
 
         mPinnedTimeUs = ALooper::GetNowUs();
+#if defined(OMAP_ENHANCEMENT) && defined(OMAP_TIME_INTERPOLATOR)
+        mRealTimeInterpolator->pause();
+#endif
     }
 }
 
 void AudioPlayer::resume() {
     CHECK(mStarted);
+
+#if defined(OMAP_ENHANCEMENT) && defined(OMAP_TIME_INTERPOLATOR)
+    mRealTimeInterpolator->resume();
+#endif
 
     if (mAudioSink.get() != NULL) {
         mAudioSink->start();
@@ -274,6 +337,9 @@ void AudioPlayer::reset() {
     mReachedEOS = false;
     mFinalStatus = OK;
     mStarted = false;
+#if defined(OMAP_ENHANCEMENT) && defined(OMAP_TIME_INTERPOLATOR)
+    mRealTimeInterpolator->reset();
+#endif
 }
 
 // static
@@ -324,6 +390,133 @@ void AudioPlayer::AudioCallback(int event, void *info) {
     buffer->size = numBytesWritten;
 }
 
+#ifdef OMAP_ENHANCEMENT //DOLBY_DDPDEC51_MULTICHANNEL
+void AudioPlayer::onPortSettingsChangedEvent() {
+    ALOGV("Port Settings Changed!");
+
+    status_t err = OK;
+    bool success;
+    sp<MetaData> format;
+    Mutex::Autolock autoLock(mLock);
+
+    if (!mPortSettingsChangedEventPending) {
+        goto onPortSettingsChangedEvent_exit;
+    }
+
+    // close exisiting playback
+    if (mAudioSink.get() != NULL) {
+        mAudioSink->stop();
+        mAudioSink->close();
+    } else {
+        mAudioTrack->stop();
+        delete mAudioTrack;
+        mAudioTrack = NULL;
+    }
+
+    // open new
+    format = mSource->getFormat();
+    const char *mime;
+    success = format->findCString(kKeyMIMEType, &mime);
+    CHECK(success);
+    CHECK(!strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_RAW));
+
+    success = format->findInt32(kKeySampleRate, &mSampleRate);
+    CHECK(success);
+
+    int32_t numChannels, channelMask;
+    success = format->findInt32(kKeyChannelCount, &numChannels);
+    CHECK(success);
+
+    if(!format->findInt32(kKeyChannelMask, &channelMask)) {
+        // log only when there's a risk of ambiguity of channel mask selection
+        ALOGI_IF(numChannels > 2,
+                "source format didn't specify channel mask, using (%d) channel order", numChannels);
+        channelMask = CHANNEL_MASK_USE_CHANNEL_ORDER;
+    }
+
+    ALOGV("AudioPlayer::New sample rate %d channels %d channelMask %d", mSampleRate, numChannels, channelMask);
+
+    err = reOpenSink(numChannels, channelMask);
+    if (err == OK)
+    {
+        if (mAudioSink.get() != NULL)
+        {
+            mAudioSink->start();
+        }
+        else
+        {
+            mAudioTrack->start();
+        }
+    }
+
+onPortSettingsChangedEvent_exit:
+
+    mPortSettingsChangedEventPending = false;
+
+    if (err != OK) {
+        if (mObserver && !mReachedEOS) {
+            mObserver->postAudioEOS();
+        }
+
+        mReachedEOS = true;
+        mFinalStatus = err;
+    }
+
+    return;
+}
+int AudioPlayer::reOpenSink(int numChannels, int channelMask)
+{
+    int err;
+
+    if (mAudioSink.get() != NULL) {
+        status_t err = mAudioSink->open(
+                mSampleRate, numChannels, channelMask, AUDIO_FORMAT_PCM_16_BIT,
+                DEFAULT_AUDIOSINK_BUFFERCOUNT,
+                &AudioPlayer::AudioSinkCallback,
+                this,
+                (mAllowDeepBuffering ?
+                            AUDIO_OUTPUT_FLAG_DEEP_BUFFER :
+                            AUDIO_OUTPUT_FLAG_NONE));
+        if (err != OK) {
+            ALOGE("mAudioSink->open error : %d", err);
+                return err;
+        }
+
+        mLatencyUs = (int64_t)mAudioSink->latency() * 1000;
+        mFrameSize = mAudioSink->frameSize();
+
+    } else {
+        int channels = 0;
+        int outputflag = 0;
+
+        // playing to an AudioTrack, set up mask if necessary
+        audio_channel_mask_t audioMask = channelMask == CHANNEL_MASK_USE_CHANNEL_ORDER ?
+                audio_channel_out_mask_from_count(numChannels) : channelMask;
+        if (0 == audioMask) {
+            return BAD_VALUE;
+        }
+
+        mAudioTrack = new AudioTrack(
+                AUDIO_STREAM_MUSIC, mSampleRate, AUDIO_FORMAT_PCM_16_BIT, audioMask,
+                0, AUDIO_OUTPUT_FLAG_NONE, &AudioCallback, this, 0);
+
+        if ((err = mAudioTrack->initCheck()) != OK) {
+
+            ALOGE("AudioTrack error : %d", err);
+
+            delete mAudioTrack;
+            mAudioTrack = NULL;
+
+            return err;
+        }
+
+        mLatencyUs = (int64_t)mAudioTrack->latency() * 1000;
+        mFrameSize = mAudioTrack->frameSize();
+
+    }
+    return OK;
+}
+#endif
 uint32_t AudioPlayer::getNumFramesPendingPlayout() const {
     uint32_t numFramesPlayedOut;
     status_t err;
@@ -356,6 +549,21 @@ size_t AudioPlayer::fillBuffer(void *data, size_t size) {
     bool postSeekComplete = false;
     bool postEOS = false;
     int64_t postEOSDelayUs = 0;
+
+#if defined(OMAP_ENHANCEMENT) && defined(OMAP_TIME_INTERPOLATOR)
+    mRealTimeInterpolator->post_buffer(
+        TimeInterpolator::bytes_to_usecs(size, mFrameSize, mSampleRate)
+        );
+    mPositionTimeRealUs = mRealTimeInterpolator->get_stream_usecs();
+#endif
+
+#ifdef OMAP_ENHANCEMENT //DOLBY_DDPDEC51_MULTICHANNEL
+    if (true == mPortSettingsChangedEventPending) {
+        ALOGV("Waiting for reconfig to finish... filling zeros");
+        memset(data, 0, size);
+        return size;
+    }
+#endif
 
     size_t size_done = 0;
     size_t size_remaining = size;
@@ -400,6 +608,13 @@ size_t AudioPlayer::fillBuffer(void *data, size_t size) {
             } else {
                 err = mSource->read(&mInputBuffer, &options);
             }
+#ifdef OMAP_ENHANCEMENT //DOLBY_DDPDEC51_MULTICHANNEL
+            if (err == INFO_FORMAT_CHANGED) {
+                ALOGV("INFO_FORMAT_CHANGED - pending port settings changed = true");
+                mPortSettingsChangedEventPending = true;
+               break;
+            }
+#endif
 
             CHECK((err == OK && mInputBuffer != NULL)
                    || (err != OK && mInputBuffer == NULL));
@@ -457,9 +672,11 @@ size_t AudioPlayer::fillBuffer(void *data, size_t size) {
             CHECK(mInputBuffer->meta_data()->findInt64(
                         kKeyTime, &mPositionTimeMediaUs));
 
+#if ! (defined(OMAP_ENHANCEMENT) && defined(OMAP_TIME_INTERPOLATOR))
             mPositionTimeRealUs =
                 ((mNumFramesPlayed + size_done / mFrameSize) * 1000000)
                     / mSampleRate;
+#endif
 
             ALOGV("buffer->size() = %d, "
                  "mPositionTimeMediaUs=%.2f mPositionTimeRealUs=%.2f",
@@ -500,6 +717,13 @@ size_t AudioPlayer::fillBuffer(void *data, size_t size) {
         } else {
             mPinnedTimeUs = -1ll;
         }
+#ifdef OMAP_ENHANCEMENT //DOLBY_DDPDEC51_MULTICHANNEL
+        if(mPortSettingsChangedEventPending) {
+            ALOGV("portsettingschangedevent received ... posting event");
+            mQueue.postEvent(mPortSettingsChangedEvent);
+            return size_done;
+        }
+#endif
     }
 
     if (postEOS) {
@@ -515,7 +739,11 @@ size_t AudioPlayer::fillBuffer(void *data, size_t size) {
 
 int64_t AudioPlayer::getRealTimeUs() {
     Mutex::Autolock autoLock(mLock);
+#if defined(OMAP_ENHANCEMENT) && defined(OMAP_TIME_INTERPOLATOR)
+    return mRealTimeInterpolator->get_stream_usecs();
+#else
     return getRealTimeUsLocked();
+#endif
 }
 
 int64_t AudioPlayer::getRealTimeUsLocked() const {
@@ -557,11 +785,33 @@ int64_t AudioPlayer::getMediaTimeUs() {
     return mPositionTimeMediaUs + realTimeOffset;
 }
 
+#if defined(OMAP_ENHANCEMENT) && defined(OMAP_TIME_INTERPOLATOR)
+int64_t AudioPlayer::latency() const
+{
+    return mLatencyUs;
+}
+#endif
+
+#if defined(OMAP_ENHANCEMENT) && defined(OMAP_TIME_INTERPOLATOR)
+void AudioPlayer::forcibly_update_audio_clocks_read_pointer()
+{
+    Mutex::Autolock lock(mLock);
+    mRealTimeInterpolator->forcibly_update_read_pointer(mPositionTimeMediaUs);
+}
+#endif
+
 bool AudioPlayer::getMediaTimeMapping(
         int64_t *realtime_us, int64_t *mediatime_us) {
     Mutex::Autolock autoLock(mLock);
 
+#if defined(OMAP_ENHANCEMENT) && defined(OMAP_TIME_INTERPOLATOR)
+    /* AwesomePlayer wants to make sure that the read pointer in
+     * the codec is close to what the buffer "read pointer" is.
+     */
+    *realtime_us = mRealTimeInterpolator->read_pointer();
+#else
     *realtime_us = mPositionTimeRealUs;
+#endif
     *mediatime_us = mPositionTimeMediaUs;
 
     return mPositionTimeRealUs != -1 && mPositionTimeMediaUs != -1;
@@ -574,6 +824,9 @@ status_t AudioPlayer::seekTo(int64_t time_us) {
     mPositionTimeRealUs = mPositionTimeMediaUs = -1;
     mReachedEOS = false;
     mSeekTimeUs = time_us;
+#if defined(OMAP_ENHANCEMENT) && defined(OMAP_TIME_INTERPOLATOR)
+    mRealTimeInterpolator->seek(time_us);
+#endif
 
     // Flush resets the number of played frames
     mNumFramesPlayed = 0;
