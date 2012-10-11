@@ -1353,7 +1353,8 @@ status_t AwesomePlayer::getPosition(int64_t *positionUs) {
         *positionUs = mVideoTimeUs;
     } else if (mAudioPlayer != NULL) {
 #if defined(OMAP_ENHANCEMENT) && defined(OMAP_TIME_INTERPOLATOR)
-        *positionUs = mAudioPlayer->getRealTimeUs();
+        int64_t pos = mAudioPlayer->getRealTimeUs();
+        *positionUs = (pos > 0) ? pos : 0;
 #else
         *positionUs = mAudioPlayer->getMediaTimeUs();
 #endif
