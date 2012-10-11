@@ -24,6 +24,10 @@
 #include <ui/GraphicBuffer.h>
 #include <camera/Camera.h>
 #include <camera/CameraParameters.h>
+#ifdef OMAP_ENHANCEMENT_CPCAM
+#include <camera/ShotParameters.h>
+#include <camera/CameraMetadata.h>
+#endif
 #include <system/window.h>
 #include <hardware/camera.h>
 
@@ -103,7 +107,35 @@ public:
             ALOGE("Could not open camera %s: %d", mName.string(), rc);
             return rc;
         }
+
+#ifdef OMAP_ENHANCEMENT
+        memset(&mDeviceExtendedOps, 0, sizeof(mDeviceExtendedOps));
+        memset(&mPreviewStreamExtendedOps, 0, sizeof(mPreviewStreamExtendedOps));
+
+        if (mDevice->ops->send_command) {
+            int32_t arg1, arg2;
+            camera_cmd_send_command_pointer_to_args(&mDeviceExtendedOps, &arg1, &arg2);
+            mDevice->ops->send_command(mDevice, CAMERA_CMD_SETUP_EXTENDED_OPERATIONS, arg1, arg2);
+
+#ifdef OMAP_ENHANCEMENT_CPCAM
+            mPreviewStreamExtendedOps.update_and_get_buffer = __update_and_get_buffer;
+            mPreviewStreamExtendedOps.get_buffer_dimension = __get_buffer_dimension;
+            mPreviewStreamExtendedOps.get_buffer_format = __get_buffer_format;
+            mPreviewStreamExtendedOps.set_metadata = __set_metadata;
+#endif
+            if (mDeviceExtendedOps.set_extended_preview_ops) {
+                mDeviceExtendedOps.set_extended_preview_ops(mDevice, &mPreviewStreamExtendedOps);
+            }
+        }
+#endif
+
+#ifdef OMAP_ENHANCEMENT_CPCAM
+        initHalPreviewWindow(mHalPreviewWindow);
+        initHalPreviewWindow(mHalTapin);
+        initHalPreviewWindow(mHalTapout);
+#else
         initHalPreviewWindow();
+#endif
         return rc;
     }
 
@@ -115,6 +147,9 @@ public:
         if (mDevice->ops->set_preview_window) {
             mPreviewWindow = buf;
             mHalPreviewWindow.user = this;
+#ifdef OMAP_ENHANCEMENT_CPCAM
+            mHalPreviewWindow.window = mPreviewWindow.get();
+#endif
             ALOGV("%s &mHalPreviewWindow %p mHalPreviewWindow.user %p", __FUNCTION__,
                     &mHalPreviewWindow, mHalPreviewWindow.user);
             return mDevice->ops->set_preview_window(mDevice,
@@ -362,6 +397,18 @@ public:
         return INVALID_OPERATION;
     }
 
+#ifdef OMAP_ENHANCEMENT_CPCAM
+    status_t takePictureWithParameters(const ShotParameters &params)
+    {
+        ALOGV("%s(%s)", __FUNCTION__, mName.string());
+        if (mDeviceExtendedOps.take_picture_with_parameters) {
+            return mDeviceExtendedOps.take_picture_with_parameters(mDevice,
+                    params.flatten().string());
+        }
+        return INVALID_OPERATION;
+    }
+#endif
+
     /**
      * Cancel a picture that was started with takePicture.  Calling this
      * method when no picture is being taken is a no-op.
@@ -424,6 +471,37 @@ public:
             mDevice->ops->release(mDevice);
     }
 
+#ifdef OMAP_ENHANCEMENT_CPCAM
+    /** Set the ANativeWindow to which preview frames are sent */
+    status_t setBufferSource(const sp<ANativeWindow>& tapin,
+                             const sp<ANativeWindow>& tapout)
+    {
+        ALOGV("%s(%s)", __FUNCTION__, mName.string());
+        if (mDeviceExtendedOps.set_buffer_source) {
+            const status_t err = mDeviceExtendedOps.set_buffer_source(mDevice,
+                    tapin.get() ? &mHalTapin.nw : 0,
+                    tapout.get() ? &mHalTapout.nw : 0);
+            mTapin = tapin;
+            mHalTapin.user = this;
+            mHalTapin.window = mTapin.get();
+            mTapout = tapout;
+            mHalTapout.user = this;
+            mHalTapout.window = mTapout.get();
+            return err;
+        }
+        return INVALID_OPERATION;
+    }
+
+    status_t reprocess(const ShotParameters &params)
+    {
+        ALOGV("%s(%s)", __FUNCTION__, mName.string());
+        if (mDeviceExtendedOps.reprocess) {
+            return mDeviceExtendedOps.reprocess(mDevice, params.flatten().string());
+        }
+        return INVALID_OPERATION;
+    }
+#endif
+
     /**
      * Dump state of the camera hardware
      */
@@ -438,6 +516,11 @@ public:
 private:
     camera_device_t *mDevice;
     String8 mName;
+
+#ifdef OMAP_ENHANCEMENT
+    camera_device_extended_ops_t mDeviceExtendedOps;
+    preview_stream_extended_ops_t mPreviewStreamExtendedOps;
+#endif
 
     static void __notify_cb(int32_t msg_type, int32_t ext1,
                             int32_t ext2, void *user)
@@ -555,6 +638,9 @@ private:
         mem->decStrong(mem);
     }
 
+#ifdef OMAP_ENHANCEMENT_CPCAM
+#define anw(n) (((struct camera_preview_window *)n)->window)
+#else
     static ANativeWindow *__to_anw(void *user)
     {
         CameraHardwareInterface *__this =
@@ -562,6 +648,7 @@ private:
         return __this->mPreviewWindow.get();
     }
 #define anw(n) __to_anw(((struct camera_preview_window *)n)->user)
+#endif
 
     static int __dequeue_buffer(struct preview_stream_ops* w,
                                 buffer_handle_t** buffer, int *stride)
@@ -659,6 +746,72 @@ private:
         return a->query(a, NATIVE_WINDOW_MIN_UNDEQUEUED_BUFFERS, count);
     }
 
+#ifdef OMAP_ENHANCEMENT_CPCAM
+    static int __update_and_get_buffer(struct preview_stream_ops* w,
+            buffer_handle_t** buffer, int *stride)
+    {
+        ANativeWindow *a = anw(w);
+        ANativeWindowBuffer* anb;
+        int status = a->perform(a, NATIVE_WINDOW_UPDATE_AND_GET_CURRENT, &anb);
+        if (status != OK) {
+            return status;
+        }
+
+        *buffer = &anb->handle;
+        *stride = anb->stride;
+        return OK;
+    }
+
+    static int __get_buffer_dimension(struct preview_stream_ops *w,
+            int *width, int *height)
+    {
+        ANativeWindow *a = anw(w);
+        int status;
+
+        status = a->query(a, NATIVE_WINDOW_WIDTH, width);
+        if (status != OK) {
+            return status;
+        }
+
+        status = a->query(a, NATIVE_WINDOW_HEIGHT, height);
+        if (status != OK) {
+            return status;
+        }
+
+        return OK;
+    }
+
+    static int __get_buffer_format(struct preview_stream_ops *w,
+            int *format)
+    {
+        ANativeWindow *a = anw(w);
+        return a->query(a, NATIVE_WINDOW_FORMAT, format);
+    }
+
+    static int __set_metadata(struct preview_stream_ops *w,
+            const camera_memory_t *metadata)
+    {
+        ANativeWindow *a = anw(w);
+        sp<CameraHeapMemory> mem = static_cast<CameraHeapMemory *>(metadata->handle);
+        return native_window_set_buffers_metadata(a, mem->mBuffers[0].get());
+    }
+
+    struct camera_preview_window;
+    void initHalPreviewWindow(camera_preview_window &w)
+    {
+        w.nw.cancel_buffer = __cancel_buffer;
+        w.nw.lock_buffer = __lock_buffer;
+        w.nw.dequeue_buffer = __dequeue_buffer;
+        w.nw.enqueue_buffer = __enqueue_buffer;
+        w.nw.set_buffer_count = __set_buffer_count;
+        w.nw.set_buffers_geometry = __set_buffers_geometry;
+        w.nw.set_crop = __set_crop;
+        w.nw.set_usage = __set_usage;
+        w.nw.set_swap_interval = __set_swap_interval;
+        w.nw.get_min_undequeued_buffer_count = __get_min_undequeued_buffer_count;
+    }
+
+#else
     void initHalPreviewWindow()
     {
         mHalPreviewWindow.nw.cancel_buffer = __cancel_buffer;
@@ -675,15 +828,26 @@ private:
         mHalPreviewWindow.nw.get_min_undequeued_buffer_count =
                 __get_min_undequeued_buffer_count;
     }
+#endif
 
     sp<ANativeWindow>        mPreviewWindow;
 
     struct camera_preview_window {
         struct preview_stream_ops nw;
         void *user;
+#ifdef OMAP_ENHANCEMENT_CPCAM
+        ANativeWindow *window;
+#endif
     };
 
     struct camera_preview_window mHalPreviewWindow;
+
+#ifdef OMAP_ENHANCEMENT_CPCAM
+    sp<ANativeWindow>        mTapin;
+    sp<ANativeWindow>        mTapout;
+    struct camera_preview_window mHalTapin;
+    struct camera_preview_window mHalTapout;
+#endif
 
     notify_callback         mNotifyCb;
     data_callback           mDataCb;

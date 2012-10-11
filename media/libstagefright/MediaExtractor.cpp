@@ -30,6 +30,11 @@
 #include "include/FLACExtractor.h"
 #include "include/AACExtractor.h"
 
+#ifdef OMAP_ENHANCEMENT
+#include "include/ASFExtractor.h"
+#include "include/AVIExtractor.h"
+#endif
+
 #include "matroska/MatroskaExtractor.h"
 
 #include <media/stagefright/foundation/AMessage.h>
@@ -117,6 +122,18 @@ sp<MediaExtractor> MediaExtractor::Create(
     } else if (!strcasecmp(mime, MEDIA_MIMETYPE_CONTAINER_MPEG2PS)) {
         ret = new MPEG2PSExtractor(source);
     }
+
+#ifdef OMAP_ENHANCEMENT
+    else if (!strcasecmp(mime, MEDIA_MIMETYPE_CONTAINER_AVI)) {
+        ret = new AVIExtractor(source);
+    } else if (!strcasecmp(mime, MEDIA_MIMETYPE_CONTAINER_ASF)) {
+        if(isASFParserAvailable())  {
+            return new ASFExtractor(source);
+        } else {
+            return NULL;
+        }
+    }
+#endif
 
     if (ret != NULL) {
        if (isDrm) {

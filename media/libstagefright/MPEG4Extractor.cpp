@@ -41,8 +41,22 @@
 #include <utils/String8.h>
 
 namespace android {
+#ifdef OMAP_ENHANCEMENT
+#define MP4_MPEG2VisualSimple  0x60
+#define MP4_MPEG2VisualMain    0x61
+#define MP4_MPEG2VisualSNR     0x62
+#define MP4_MPEG2VisualSpatial 0x63
+#define MP4_MPEG2VisualHigh    0x64
+#define MP4_MPEG2Visual422     0x65
+#define IS_MP4_MPEG2(x) (x < MP4_MPEG2VisualSimple) ? false : \
+                     (x > MP4_MPEG2Visual422)    ? false : true
+#endif
 
+#ifdef OMAP_ENHANCEMENT
+class MPEG4Source : public MediaSourceWithHaveDeltaTable {
+#else
 class MPEG4Source : public MediaSource {
+#endif
 public:
     // Caller retains ownership of both "dataSource" and "sampleTable".
     MPEG4Source(const sp<MetaData> &format,
@@ -87,6 +101,13 @@ private:
 
     MPEG4Source(const MPEG4Source &);
     MPEG4Source &operator=(const MPEG4Source &);
+
+#ifdef OMAP_ENHANCEMENT
+public:
+    bool haveDeltaTable() const {
+        return mSampleTable == NULL ? false : mSampleTable->haveDeltaTable();
+    }
+#endif
 };
 
 // This custom data source wraps an existing one and satisfies requests
@@ -245,6 +266,10 @@ static const char *FourCC2MIME(uint32_t fourcc) {
         case FOURCC('s', 'a', 'w', 'b'):
             return MEDIA_MIMETYPE_AUDIO_AMR_WB;
 
+#ifdef OMAP_ENHANCEMENT
+        case FOURCC('.', 'm', 'p', '3'):
+            return MEDIA_MIMETYPE_AUDIO_MPEG;
+#endif
         case FOURCC('m', 'p', '4', 'v'):
             return MEDIA_MIMETYPE_VIDEO_MPEG4;
 
@@ -253,6 +278,11 @@ static const char *FourCC2MIME(uint32_t fourcc) {
         case FOURCC('H', '2', '6', '3'):
             return MEDIA_MIMETYPE_VIDEO_H263;
 
+#ifdef OMAP_ENHANCEMENT
+        case FOURCC('M', 'P', 'G', '2'):
+        case FOURCC('m', 'p', 'g', '2'):
+            return MEDIA_MIMETYPE_VIDEO_MPEG2;
+#endif
         case FOURCC('a', 'v', 'c', '1'):
             return MEDIA_MIMETYPE_VIDEO_AVC;
 
@@ -376,6 +406,31 @@ status_t MPEG4Extractor::readMetaData() {
         if (mHasVideo) {
             mFileMetaData->setCString(
                     kKeyMIMEType, MEDIA_MIMETYPE_CONTAINER_MPEG4);
+#ifdef OMAP_ENHANCEMENT
+            Track *tempTrack = mFirstTrack;
+            int count = 0;
+            const char *mime;
+            while (tempTrack) {
+                CHECK(tempTrack->meta->findCString(kKeyMIMEType, &mime));
+                if (!strncasecmp("video/", mime, 6)) {
+                    size_t totalframes;
+                    int64_t duration;
+                    int32_t dur32, fps;
+                    fps = 0;
+                    totalframes = tempTrack->sampleTable->countSamples();
+                    tempTrack->meta->findInt64(kKeyDuration, &duration);
+                    dur32 = (int32_t) (duration / 1000000);
+                    if (dur32 <=0) {
+                        //dur32 will be zero for clips < 1 second.
+                        dur32 = 1;
+                    }
+                    fps = totalframes/dur32;
+                    ALOGV("totalframes %d duration %lld dur32 %d fps %d",totalframes,duration,dur32,fps);
+                    tempTrack->meta->setInt32(kKeyVideoFPS,fps);
+                }
+                tempTrack= tempTrack->next;
+            }
+#endif
         } else {
             mFileMetaData->setCString(kKeyMIMEType, "audio/mp4");
         }
@@ -621,11 +676,17 @@ status_t MPEG4Extractor::parseChunk(off64_t *offset, int depth) {
             // The smallest valid chunk is 16 bytes long in this case.
             return ERROR_MALFORMED;
         }
-    } else if (chunk_size < 8) {
+#ifdef OMAP_ENHANCEMENT
+    } else if ((chunk_size < 8) && (chunk_size != 0)) {
         // The smallest valid chunk is 8 bytes long.
         return ERROR_MALFORMED;
     }
-
+#else
+    } else if (chunk_size < 8){
+        // The smallest valid chunk is 8 bytes long.
+        return ERROR_MALFORMED;
+    }
+#endif
     char chunk[5];
     MakeFourCCString(chunk_type, chunk);
     ALOGV("chunk: %s @ %lld", chunk, *offset);
@@ -670,7 +731,27 @@ status_t MPEG4Extractor::parseChunk(off64_t *offset, int depth) {
 
         return OK;
     }
+#ifdef OMAP_ENHANCEMENT
+    {
+        union {
+            uint32_t chunk;
+            uint8_t t[4];
+        } chnk;
+        chnk.chunk=chunk_type;
+        ALOGV("Chunk: %c%c%c%c\n", chnk.t[3],chnk.t[2],chnk.t[1],chnk.t[0]);
+    }
+    // If the size of the atom is zero, then this is an empty atom that
+    //  needs to be skipped; the way to skip it is by making its size 4,
+    //  so the next time the instruction *offset += chunk_size happen
+    //  the atom be skipped and it doesn't cause the parser enter in
+    //  aninfinite loop.
+    //  (*offset would be pointing to the same place again and again if
+    //  chunk_size is zero)
 
+    if (!chunk_size) {
+        chunk_size=4;
+    }
+#endif
     switch(chunk_type) {
         case FOURCC('m', 'o', 'o', 'v'):
         case FOURCC('t', 'r', 'a', 'k'):
@@ -703,6 +784,9 @@ status_t MPEG4Extractor::parseChunk(off64_t *offset, int depth) {
             }
 
             bool isTrack = false;
+#ifdef OMAP_ENHANCEMENT
+            Track *backupTrack = mLastTrack;
+#endif
             if (chunk_type == FOURCC('t', 'r', 'a', 'k')) {
                 isTrack = true;
 
@@ -757,7 +841,16 @@ status_t MPEG4Extractor::parseChunk(off64_t *offset, int depth) {
                 status_t err = verifyTrack(mLastTrack);
 
                 if (err != OK) {
+#ifdef OMAP_ENHANCEMENT
+                    //Patch to skip broken/empty track
+                    isTrack = false;
+                    mLastTrack = backupTrack;
+                    mLastTrack->next = NULL;
+                    err = OK;
+                    ALOGE("Found corrupted track descriptor");
+#else
                     return err;
+#endif
                 }
             } else if (chunk_type == FOURCC('m', 'o', 'o', 'v')) {
                 mInitCheck = OK;
@@ -920,6 +1013,9 @@ status_t MPEG4Extractor::parseChunk(off64_t *offset, int depth) {
         case FOURCC('m', 'p', '4', 'a'):
         case FOURCC('s', 'a', 'm', 'r'):
         case FOURCC('s', 'a', 'w', 'b'):
+#ifdef OMAP_ENHANCEMENT
+        case FOURCC('.', 'm', 'p', '3'):
+#endif
         {
             uint8_t buffer[8 + 20];
             if (chunk_data_size < (ssize_t)sizeof(buffer)) {
@@ -961,6 +1057,14 @@ status_t MPEG4Extractor::parseChunk(off64_t *offset, int depth) {
 
             off64_t stop_offset = *offset + chunk_size;
             *offset = data_offset + sizeof(buffer);
+#ifdef OMAP_ENHANCEMENT
+            if (!strcasecmp(MEDIA_MIMETYPE_AUDIO_AMR_WB,
+                    FourCC2MIME(chunk_type)) ||
+                    !strcasecmp(MEDIA_MIMETYPE_AUDIO_AMR_NB,
+                    FourCC2MIME(chunk_type))) {
+                *offset = stop_offset;
+            }
+#endif
             while (*offset < stop_offset) {
                 status_t err = parseChunk(offset, depth + 1);
                 if (err != OK) {
@@ -978,6 +1082,10 @@ status_t MPEG4Extractor::parseChunk(off64_t *offset, int depth) {
         case FOURCC('s', '2', '6', '3'):
         case FOURCC('H', '2', '6', '3'):
         case FOURCC('h', '2', '6', '3'):
+#ifdef OMAP_ENHANCEMENT
+        case FOURCC('M', 'P', 'G', '2'):
+        case FOURCC('m', 'p', 'g', '2'):
+#endif
         case FOURCC('a', 'v', 'c', '1'):
         {
             mHasVideo = true;
@@ -1198,6 +1306,22 @@ status_t MPEG4Extractor::parseChunk(off64_t *offset, int depth) {
 
             mLastTrack->meta->setData(
                     kKeyESDS, kTypeESDS, &buffer[4], chunk_data_size - 4);
+
+#ifdef OMAP_ENHANCEMENT
+            // For MP4V video tracks, check and update mime type, based on MPEG2/MPEG4 bitstream
+            const char *mime;
+            CHECK(mLastTrack->meta->findCString(kKeyMIMEType, &mime));
+            if (!strcmp(mime,MEDIA_MIMETYPE_VIDEO_MPEG4)) {
+                ESDS esds(&buffer[4], chunk_data_size - 4);
+                uint8_t objectTypeIndication;
+                if (OK == esds.getObjectTypeIndication(&objectTypeIndication)) {
+                    if (IS_MP4_MPEG2(objectTypeIndication)) {
+                        ALOGV("Mpeg2 Clip. Setting MIME type to MPEG2");
+                        mLastTrack->meta->setCString(kKeyMIMEType, MEDIA_MIMETYPE_VIDEO_MPEG2);
+                    }
+                }
+            }
+#endif
 
             if (mPath.size() >= 2
                     && mPath[mPath.size() - 2] == FOURCC('m', 'p', '4', 'a')) {
@@ -1797,8 +1921,13 @@ status_t MPEG4Extractor::updateAudioTrackInfoFromESDS_MPEG4Audio(
         // The media subtype is MP3 audio
         // Our software MP3 audio decoder may not be able to handle
         // packetized MP3 audio; for now, lets just return ERROR_UNSUPPORTED
+#ifdef OMAP_ENHANCEMENT
+        mLastTrack->meta->setCString(kKeyMIMEType, MEDIA_MIMETYPE_AUDIO_MPEG);
+        return OK;
+#else
         ALOGE("MP3 track in MP4/3GPP file is not supported");
         return ERROR_UNSUPPORTED;
+#endif
     }
 
     const uint8_t *csd;
@@ -2010,7 +2139,9 @@ status_t MPEG4Source::read(
 
     CHECK(mStarted);
 
+#ifndef OMAP_ENHANCEMENT
     *out = NULL;
+#endif
 
     int64_t targetSampleTimeUs = -1;
 
@@ -2100,7 +2231,12 @@ status_t MPEG4Source::read(
     uint32_t cts;
     bool isSyncSample;
     bool newBuffer = false;
+
+#ifdef OMAP_ENHANCEMENT
+    if (mBuffer == NULL || (*out && !mWantsNALFragments)) {
+#else
     if (mBuffer == NULL) {
+#endif
         newBuffer = true;
 
         status_t err =
@@ -2111,7 +2247,15 @@ status_t MPEG4Source::read(
             return err;
         }
 
+#ifdef OMAP_ENHANCEMENT
+        if (NULL == *out || mWantsNALFragments) {
+            err = mGroup->acquire_buffer(&mBuffer);
+        } else {
+            mBuffer = *out;
+        }
+#else
         err = mGroup->acquire_buffer(&mBuffer);
+#endif
 
         if (err != OK) {
             CHECK(mBuffer == NULL);

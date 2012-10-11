@@ -53,15 +53,27 @@ LOCAL_SRC_FILES:=                         \
         WVMExtractor.cpp                  \
         XINGSeeker.cpp                    \
         avc_utils.cpp                     \
+        APE.cpp                           \
+
+ifeq ($(OMAP_ENHANCEMENT), true)
+LOCAL_SRC_FILES += ASFExtractor.cpp
+LOCAL_SRC_FILES +=  AVIExtractor.cpp
+LOCAL_SRC_FILES += TimeInterpolator.cpp
+endif
 
 LOCAL_C_INCLUDES:= \
         $(TOP)/frameworks/av/include/media/stagefright/timedtext \
         $(TOP)/frameworks/native/include/media/hardware \
-        $(TOP)/frameworks/native/include/media/openmax \
         $(TOP)/external/expat/lib \
         $(TOP)/external/flac/include \
         $(TOP)/external/tremolo \
         $(TOP)/external/openssl/include \
+
+ifdef OMAP_ENHANCEMENT
+LOCAL_C_INCLUDES += $(DOMX_PATH)/omx_core/inc
+else
+LOCAL_C_INCLUDES += $(TOP)/frameworks/native/include/media/openmax
+endif
 
 LOCAL_SHARED_LIBRARIES := \
         libbinder \
