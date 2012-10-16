@@ -136,9 +136,12 @@ public:
 
 #ifdef OMAP_ENHANCEMENT_CPCAM
             status_t    reprocess(int msgType, const String8& params);
-            // pass the buffered ISurfaceTexture to the camera service
+            // pass buffer sources to the camera service
             status_t    setBufferSource(const sp<ISurfaceTexture>& tapin,
                                         const sp<ISurfaceTexture>& tapout);
+            // release buffer sources previously set to the camera service
+            status_t    releaseBufferSource(const sp<ISurfaceTexture>& tapin,
+                                            const sp<ISurfaceTexture>& tapout);
 #endif
 
             void        setListener(const sp<CameraListener>& listener);
