@@ -28,6 +28,9 @@ const char ShotParameters::KEY_BURST[] = "burst-capture";
 const char ShotParameters::KEY_EXP_GAIN_PAIRS[] = "exp-gain-pairs";
 const char ShotParameters::KEY_EXP_COMPENSATION[] = "exp-compensation";
 const char ShotParameters::KEY_FLUSH_CONFIG[] = "flush";
+const char ShotParameters::KEY_CURRENT_TAP_OUT[] = "tap-out";
+const char ShotParameters::KEY_CURRENT_TAP_IN[] = "tap-in";
+
 const char ShotParameters::TRUE[] = "true";
 const char ShotParameters::FALSE[] = "false";
 

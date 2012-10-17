@@ -518,17 +518,6 @@ void CameraService::Client::disconnect() {
         mPreviewWindow = 0;
         mHardware->setPreviewWindow(mPreviewWindow);
     }
-#ifdef OMAP_ENHANCEMENT_CPCAM
-   // Release the held ANativeWindow resources.
-    if (mTapinClient != 0 || mTapoutClient != 0) {
-        if (mTapoutClient != 0) {
-            disconnectWindow(mTapoutClient);
-        }
-        mTapinClient = 0;
-        mTapoutClient = 0;
-        mHardware->setBufferSource(mTapinClient, mTapoutClient);
-    }
-#endif
     mHardware.clear();
 
     mCameraService->removeClient(mCameraClient);
@@ -976,61 +965,31 @@ status_t CameraService::Client::sendCommand(int32_t cmd, int32_t arg1, int32_t a
 }
 
 #ifdef OMAP_ENHANCEMENT_CPCAM
-// set the SurfaceTexture that the preview will use
+// buffer sources to be used for image capture
 status_t CameraService::Client::setBufferSource(
         const sp<ISurfaceTexture>& tapin,
         const sp<ISurfaceTexture>& tapout) {
     LOG1("setBufferSource(%p,%p) (pid %d)", tapin.get(), tapout.get(),
             getCallingPid());
 
-    sp<IBinder> tapinBinder, tapoutBinder;
     sp<ANativeWindow> tapinWindow, tapoutWindow;
     status_t result = NO_ERROR;
 
     Mutex::Autolock lock(mLock);
 
     if (tapin != 0) {
-        tapinBinder = tapin->asBinder();
         tapinWindow = new SurfaceTextureClient(tapin);
     }
 
     if (tapout != 0) {
-        tapoutBinder = tapout->asBinder();
         tapoutWindow = new SurfaceTextureClient(tapout);
     }
 
     result = checkPidAndHardware();
     if (result != NO_ERROR) return result;
 
-    // return if we already set this buffer source
-    if (tapinBinder == mTapin && tapoutBinder == mTapout) {
-        return NO_ERROR;
-    }
-
-    // need to connect tap out since camera will be FILLING those buffers
-    if (tapoutWindow != 0) {
-        result = native_window_api_connect(tapoutWindow.get(), NATIVE_WINDOW_API_CAMERA);
-        if (result != NO_ERROR) {
-            ALOGE("native_window_api_connect failed: %s (%d)", strerror(-result), result);
-            return result;
-        }
-    }
-
     if (tapoutWindow != 0 || tapinWindow !=0) {
         result = mHardware->setBufferSource(tapinWindow, tapoutWindow);
-    }
-
-    if (result == NO_ERROR) {
-        // Everything has succeeded.  Disconnect the old window and remember the new window.
-        disconnectWindow(mTapoutClient);
-        mTapin = tapinBinder;
-        mTapinClient = tapinWindow;
-        mTapout = tapoutBinder;
-        mTapoutClient = tapoutWindow;
-    } else {
-        // Something went wrong after we connected to the new window, so
-        // disconnect here.
-        disconnectWindow(tapoutWindow);
     }
 
     return result;
@@ -1083,6 +1042,36 @@ status_t CameraService::Client::reprocess(int msgType, const String8& params) {
     disableMsgType(picMsgType);
 
     return mHardware->reprocess(params);
+}
+
+// release buffer sources previously set by setBufferSource()
+status_t CameraService::Client::releaseBufferSource(
+        const sp<ISurfaceTexture>& tapin,
+        const sp<ISurfaceTexture>& tapout) {
+    LOG1("releaseBufferSource(%p,%p) (pid %d)", tapin.get(), tapout.get(),
+            getCallingPid());
+
+    sp<ANativeWindow> window_tapin, window_tapout;
+    status_t result = NO_ERROR;
+
+    Mutex::Autolock lock(mLock);
+
+    if (tapin != 0) {
+        window_tapin = new SurfaceTextureClient(tapin);
+    }
+
+    if (tapout != 0) {
+        window_tapout = new SurfaceTextureClient(tapout);
+    }
+
+    result = checkPidAndHardware();
+    if (result != NO_ERROR) return result;
+
+    if ((window_tapout != 0) || (window_tapin !=0)) {
+        result = mHardware->releaseBufferSource(window_tapin, window_tapout);
+    }
+
+    return result;
 }
 #endif
 

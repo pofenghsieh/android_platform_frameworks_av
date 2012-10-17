@@ -81,6 +81,10 @@ typedef void (*data_callback_timestamp)(nsecs_t timestamp,
  */
 
 class CameraHardwareInterface : public virtual RefBase {
+#ifdef OMAP_ENHANCEMENT_CPCAM
+private:
+    struct camera_preview_window;
+#endif
 public:
     CameraHardwareInterface(const char *name)
     {
@@ -96,6 +100,27 @@ public:
             if (rc != OK)
                 ALOGE("Could not close camera %s: %d", mName.string(), rc);
         }
+#ifdef OMAP_ENHANCEMENT_CPCAM
+        for (unsigned int i = 0; i < mHalTapins.size(); i++) {
+            delete (mHalTapins.itemAt(i));
+            mTapins[i] = 0;
+        }
+        mHalTapins.clear();
+
+        for (unsigned int i = 0; i < mHalTapouts.size(); i++) {
+            if ( mTapouts[i].get() ) {
+                status_t result = native_window_api_disconnect(mTapouts[i].get(),
+                        NATIVE_WINDOW_API_CAMERA);
+                if (result != NO_ERROR) {
+                    ALOGW("native_window_api_disconnect failed: %s (%d)",
+                          strerror(-result), result);
+                }
+                delete (mHalTapouts.itemAt(i));
+                mTapouts[i] = 0;
+            }
+        }
+        mHalTapouts.clear();
+#endif
     }
 
     status_t initialize(hw_module_t *module)
@@ -121,6 +146,7 @@ public:
             mPreviewStreamExtendedOps.update_and_get_buffer = __update_and_get_buffer;
             mPreviewStreamExtendedOps.get_buffer_dimension = __get_buffer_dimension;
             mPreviewStreamExtendedOps.get_buffer_format = __get_buffer_format;
+            mPreviewStreamExtendedOps.get_id = __get_id;
             mPreviewStreamExtendedOps.set_metadata = __set_metadata;
 #endif
             if (mDeviceExtendedOps.set_extended_preview_ops) {
@@ -131,8 +157,6 @@ public:
 
 #ifdef OMAP_ENHANCEMENT_CPCAM
         initHalPreviewWindow(mHalPreviewWindow);
-        initHalPreviewWindow(mHalTapin);
-        initHalPreviewWindow(mHalTapout);
 #else
         initHalPreviewWindow();
 #endif
@@ -472,21 +496,150 @@ public:
     }
 
 #ifdef OMAP_ENHANCEMENT_CPCAM
-    /** Set the ANativeWindow to which preview frames are sent */
+    int findWindow(Vector<struct camera_preview_window*> &windows, ANativeWindow *a) {
+        int index = -1;
+        for (unsigned int i = 0; i < windows.size(); i++) {
+            const String8 id1, id2;
+
+            struct camera_preview_window *win = windows.itemAt(i);
+            ANativeWindow *a2 = win->window;
+
+            a->perform(a, NATIVE_WINDOW_GET_ID, &id1);
+            a2->perform(a2, NATIVE_WINDOW_GET_ID, &id2);
+
+            if (id1.isEmpty() || id2.isEmpty()) {
+                ALOGE("%s(%s) Some ST has missing name: "
+                      "id1:\"%s\" id2:\"%s\"",
+                      __FUNCTION__, mName.string(),
+                      id1.string(), id2.string());
+                continue;
+            } else if (id1 == id2) {
+                index = i;
+                break;
+            }
+        }
+        return index;
+    }
+
+    /** Set buffer sources to which image frames are sent/received */
     status_t setBufferSource(const sp<ANativeWindow>& tapin,
                              const sp<ANativeWindow>& tapout)
     {
-        ALOGV("%s(%s)", __FUNCTION__, mName.string());
+        ALOGV("%s(%s) in %p", __FUNCTION__, mName.string(), tapin.get());
+        ALOGV("%s(%s) out %p", __FUNCTION__, mName.string(), tapout.get());
         if (mDeviceExtendedOps.set_buffer_source) {
-            const status_t err = mDeviceExtendedOps.set_buffer_source(mDevice,
-                    tapin.get() ? &mHalTapin.nw : 0,
-                    tapout.get() ? &mHalTapout.nw : 0);
-            mTapin = tapin;
-            mHalTapin.user = this;
-            mHalTapin.window = mTapin.get();
-            mTapout = tapout;
-            mHalTapout.user = this;
-            mHalTapout.window = mTapout.get();
+            preview_stream_ops *tapin_ops = 0, *tapout_ops = 0;
+            status_t err;
+            if (tapin.get()) {
+                struct camera_preview_window *tapin_win = NULL;
+                int i = findWindow(mHalTapins, tapin.get());
+                if (i < 0) {
+                    if (mHalTapins.size() >= mTapinsSize) {
+                        ALOGE("%s(%s) Tap in size overflow, slot size is %d",
+                              __FUNCTION__, mName.string(), mTapinsSize);
+                        err = BAD_INDEX;
+                        return err;
+                    }
+                    tapin_win = new struct camera_preview_window;
+                    initHalPreviewWindow(*tapin_win);
+                    tapin_win->user = this;
+                    tapin_win->window = tapin.get();
+                    mHalTapins.add(tapin_win);
+                    mTapins[mHalTapins.size()-1] = tapin;
+                } else {
+                    tapin_win = mHalTapins.itemAt(i);
+                }
+                if (tapin_win) tapin_ops = &tapin_win->nw;
+            }
+
+            if (tapout.get()) {
+                struct camera_preview_window *tapout_win = NULL;
+                int i = findWindow(mHalTapouts, tapout.get());
+                if (i < 0) {
+                    if (mHalTapouts.size() >= mTapoutsSize) {
+                        ALOGE("%s(%s) Tap out size overflow, slot size is %d",
+                              __FUNCTION__, mName.string(), mTapoutsSize);
+                        err = BAD_INDEX;
+                        return err;
+                    }
+                    err = native_window_api_connect(tapout.get(), NATIVE_WINDOW_API_CAMERA);
+                    if (err != NO_ERROR) {
+                        ALOGE("native_window_api_connect failed: %s (%d)",
+                              strerror(-err), err);
+                        return err;
+                    }
+
+                    tapout_win = new struct camera_preview_window;
+                    initHalPreviewWindow(*tapout_win);
+                    tapout_win->user = this;
+                    tapout_win->window = tapout.get();
+                    mHalTapouts.add(tapout_win);
+                    mTapouts[mHalTapouts.size()-1] = tapout;
+                } else {
+                    tapout_win = mHalTapouts.itemAt(i);
+                }
+                if (tapout_win) tapout_ops = &tapout_win->nw;
+            }
+            err = mDeviceExtendedOps.set_buffer_source(mDevice, tapin_ops, tapout_ops);
+            return err;
+        }
+        return INVALID_OPERATION;
+    }
+
+    /** Release buffer sources previously set by setBufferSource() */
+    status_t releaseBufferSource(const sp<ANativeWindow>& tapin,
+                                 const sp<ANativeWindow>& tapout)
+    {
+        ALOGV("%s(%s) in %p", __FUNCTION__, mName.string(), tapin.get());
+        ALOGV("%s(%s) out %p", __FUNCTION__, mName.string(), tapout.get());
+        if (mDeviceExtendedOps.release_buffer_source) {
+            preview_stream_ops *tapin_ops = 0, *tapout_ops = 0;
+            sp<ANativeWindow> tapinNWindow, tapoutNWindow;
+            status_t err;
+            if (tapin.get()) {
+                int i = findWindow(mHalTapins, tapin.get());
+                if (i < 0) {
+                    ALOGE("Tap in %p not found in list", tapin.get());
+                } else {
+                    int sp_idx = 0;
+                    int tapin_size = mHalTapins.size();
+                    struct camera_preview_window *tapin_win = mHalTapins.itemAt(i);
+                    tapin_ops = &tapin_win->nw;
+                    size_t removed_idx = mHalTapins.removeAt(i);
+                    ALOGE_IF((int)removed_idx != i, "Tap in removed_idx is %u instead of %u", removed_idx, i);
+                    tapinNWindow = mTapins[i];
+                    for (sp_idx = i; sp_idx < tapin_size; sp_idx++) {
+                        ALOGV("Overwtite tap in %d %p->%p", sp_idx, mTapins[sp_idx + 1].get(), mTapins[sp_idx].get());
+                        mTapins[sp_idx] = mTapins[sp_idx + 1];
+                    }
+                    ALOGV("Overwtite tap in %d NULL->%p", sp_idx, mTapins[sp_idx].get());
+                    mTapins[sp_idx] = 0;
+                }
+            }
+
+            if (tapout.get()) {
+                int i = findWindow(mHalTapouts, tapout.get());
+                if (i < 0) {
+                    ALOGE("Tap out %p not found in list", tapout.get());
+                } else {
+                    int sp_idx = 0;
+                    int tapout_size = mHalTapouts.size();
+                    struct camera_preview_window *tapout_win = mHalTapouts.itemAt(i);
+                    tapout_ops = &tapout_win->nw;
+                    size_t removed_idx = mHalTapouts.removeAt(i);
+                    ALOGE_IF((int)removed_idx != i, "Tap out removed_idx is %u instead of %u", removed_idx, i);
+                    tapoutNWindow = mTapouts[i];
+                    for (sp_idx = i; sp_idx < tapout_size; sp_idx++) {
+                        ALOGV("Overwtite tap out %d %p->%p", sp_idx, mTapouts[sp_idx + 1].get(), mTapouts[sp_idx].get());
+                        mTapouts[sp_idx] = mTapouts[sp_idx + 1];
+                    }
+                    ALOGV("Overwtite tap out %d NULL->%p", sp_idx, mTapouts[sp_idx].get());
+                    mTapouts[sp_idx] = 0;
+                }
+            }
+            err = mDeviceExtendedOps.release_buffer_source(mDevice, tapin_ops, tapout_ops);
+            tapinNWindow.clear();
+            tapoutNWindow.clear();
             return err;
         }
         return INVALID_OPERATION;
@@ -788,6 +941,22 @@ private:
         return a->query(a, NATIVE_WINDOW_FORMAT, format);
     }
 
+    static int __get_id(struct preview_stream_ops *w,
+                               char *name, unsigned int nameSize) {
+        ANativeWindow *a = anw(w);
+
+        String8 id;
+        a->perform(a, NATIVE_WINDOW_GET_ID, &id);
+        if (nameSize > id.length()) {
+            strcpy(name, id.string());
+        } else {
+            strncpy(name, id.string(), nameSize);
+            *(name + nameSize - 1) = '\0';
+            ALOGE("%s: ID truncated to \"%s\"", __FUNCTION__, name);
+        }
+        return OK;
+    }
+
     static int __set_metadata(struct preview_stream_ops *w,
             const camera_memory_t *metadata)
     {
@@ -830,6 +999,9 @@ private:
     }
 #endif
 
+    static const unsigned int mTapinsSize = 10;
+    static const unsigned int mTapoutsSize = 10;
+
     sp<ANativeWindow>        mPreviewWindow;
 
     struct camera_preview_window {
@@ -843,10 +1015,10 @@ private:
     struct camera_preview_window mHalPreviewWindow;
 
 #ifdef OMAP_ENHANCEMENT_CPCAM
-    sp<ANativeWindow>        mTapin;
-    sp<ANativeWindow>        mTapout;
-    struct camera_preview_window mHalTapin;
-    struct camera_preview_window mHalTapout;
+    sp<ANativeWindow>  mTapins[mTapinsSize];
+    sp<ANativeWindow> mTapouts[mTapoutsSize];
+    Vector<struct camera_preview_window*> mHalTapins;
+    Vector<struct camera_preview_window*> mHalTapouts;
 #endif
 
     notify_callback         mNotifyCb;
