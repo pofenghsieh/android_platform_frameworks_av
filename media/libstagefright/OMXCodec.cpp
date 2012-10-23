@@ -531,19 +531,32 @@ status_t OMXCodec::configureCodec(const sp<MetaData> &meta) {
         }
 
 #ifdef OMAP_ENHANCEMENT
+        else if (meta->findData(kKeyHdr, &type, &data, &size)) {
+                    CODEC_LOGV("Codec specific information of size %d", size);
+                    addCodecSpecificData(data, size);
+                }
+        if (!strcasecmp(MEDIA_MIMETYPE_VIDEO_WMV, mMIME)) {
+            //Set the profile (RCV or VC1)
+             meta->findData(kKeyHdr, &type, &data, &size);
+             const uint8_t *ptr = (const uint8_t *)data;
+
+             OMX_U32 width = (((OMX_U32)ptr[18] << 24) | ((OMX_U32)ptr[17] << 16)
+                 | ((OMX_U32)ptr[16] << 8) | (OMX_U32)ptr[15]);
+             OMX_U32 height  = (((OMX_U32)ptr[22] << 24) | ((OMX_U32)ptr[21] << 16)
+                 | ((OMX_U32)ptr[20] << 8) | (OMX_U32)ptr[19]);
+
+             CODEC_LOGV("Height and width = %u %u\n", height, width);
+        }
         if(mFlags & kEnableTimeStampInDecodeOrder) {
             /* For WMV, AVI clips no CTTS structure available to support b-frames.
              * Hecne request codec to order frames as per decode order  */
-
             OMX_INDEXTYPE index;
             status_t err = mOMX->getExtensionIndex(
                         mNode,
                         (OMX_STRING) "OMX_TI_IndexParamTimeStampInDecodeOrder",
                         &index);
-
             CODEC_LOGV("for %s clip, got OMX_TI_IndexParamTimeStampInDecodeOrder \
                 index as 0x%x err 0x%x",mMIME, index, err);
-
             if (err == OK) {
                 OMX_TI_PARAM_TIMESTAMP_IN_DECODE_ORDER params;
                 InitOMXParams(&params);
@@ -871,6 +884,8 @@ void OMXCodec::setVideoInputFormat(
     } else if (!strcasecmp(MEDIA_MIMETYPE_VIDEO_H263, mime)) {
         compressionFormat = OMX_VIDEO_CodingH263;
 #ifdef OMAP_ENHANCEMENT
+    } else if (!strcasecmp(MEDIA_MIMETYPE_VIDEO_WMV, mime)) {
+        compressionFormat = OMX_VIDEO_CodingWMV;
     } else if (!strcasecmp(MEDIA_MIMETYPE_VIDEO_MPEG2, mime)) {
         compressionFormat = OMX_VIDEO_CodingMPEG2;
 #endif
@@ -1350,6 +1365,10 @@ status_t OMXCodec::setVideoOutputFormat(
         compressionFormat = OMX_VIDEO_CodingVPX;
     } else if (!strcasecmp(MEDIA_MIMETYPE_VIDEO_MPEG2, mime)) {
         compressionFormat = OMX_VIDEO_CodingMPEG2;
+#ifdef OMAP_ENHANCEMENT
+    } else if (!strcasecmp(MEDIA_MIMETYPE_VIDEO_WMV , mime)) {
+        compressionFormat = OMX_VIDEO_CodingWMV;
+#endif
     } else {
         ALOGE("Not a supported video mime type: %s", mime);
         CHECK(!"Should not be here. Not a supported video mime type.");
@@ -1559,6 +1578,8 @@ void OMXCodec::setComponentRole(
         { MEDIA_MIMETYPE_VIDEO_H263,
             "video_decoder.h263", "video_encoder.h263" },
 #ifdef OMAP_ENHANCEMENT
+        { MEDIA_MIMETYPE_VIDEO_WMV,
+            "video_decoder.wmv", "" },
         { MEDIA_MIMETYPE_VIDEO_MPEG2,
             "video_decoder.mpeg2", NULL },
 #endif
@@ -4744,6 +4765,8 @@ void OMXCodec::initOutputFormat(const sp<MetaData> &inputFormat) {
                 mOutputFormat->setCString(
                         kKeyMIMEType, MEDIA_MIMETYPE_VIDEO_AVC);
 #ifdef OMAP_ENHANCEMENT
+            } else if (video_def->eCompressionFormat == OMX_VIDEO_CodingWMV) {
+                mOutputFormat->setCString(kKeyMIMEType, MEDIA_MIMETYPE_VIDEO_WMV);
             } else if (video_def->eCompressionFormat == OMX_VIDEO_CodingMPEG2) {
                 mOutputFormat->setCString(
                         kKeyMIMEType, MEDIA_MIMETYPE_VIDEO_MPEG2);

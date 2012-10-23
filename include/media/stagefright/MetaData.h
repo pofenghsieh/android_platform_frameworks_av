@@ -51,6 +51,9 @@ enum {
     kKeyESDS              = 'esds',  // raw data
     kKeyAACProfile        = 'aacp',  // int32_t
     kKeyAVCC              = 'avcc',  // raw data
+#ifdef OMAP_ENHANCEMENT
+    kKeyHdr               = 'hdrd',  // raw data
+#endif
     kKeyD263              = 'd263',  // raw data
     kKeyVorbisInfo        = 'vinf',  // raw data
     kKeyVorbisBooks       = 'vboo',  // raw data
@@ -170,6 +173,9 @@ enum {
 enum {
     kTypeESDS        = 'esds',
     kTypeAVCC        = 'avcc',
+#ifdef OMAP_ENHANCEMENT
+    kTypeHdr         = 'hdrd',
+#endif
     kTypeD263        = 'd263',
 };
 
