@@ -22,6 +22,7 @@ ifeq ($(OMAP_ENHANCEMENT), true)
 LOCAL_SRC_FILES+= \
         ElementaryParser.cpp            \
         VideoParameters.cpp             \
+        AudioParameters.cpp             \
 
 endif
 
