@@ -1905,7 +1905,7 @@ void AwesomePlayer::onVideoEvent() {
             {
 #ifdef OMAP_ENHANCEMENT
                 if (mDebugFps != 0) {
-                    ALOGV("we're late by %lld us (%.2f secs) dropping "
+                    ALOGD("we're late by %lld us (%.2f secs) dropping "
                         "one after %d frames",
                         latenessUs, latenessUs / 1E6, mSinceLastDropped);
                 }
@@ -1937,7 +1937,7 @@ void AwesomePlayer::onVideoEvent() {
             // We're more than 10ms early.
 #if defined(OMAP_ENHANCEMENT) && defined(OMAP_TIME_INTERPOLATOR)
             if (-latenessUs > 100000) {
-                postVideoEvent_l(10000);
+                postVideoEvent_l(100000);
             } else {
                 postVideoEvent_l(latenessUs * -1);
             }
