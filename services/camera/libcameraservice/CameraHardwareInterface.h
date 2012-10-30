@@ -151,6 +151,7 @@ public:
             mPreviewStreamExtendedOps.set_metadata = __set_metadata;
             mPreviewStreamExtendedOps.get_crop = __get_crop;
             mPreviewStreamExtendedOps.get_current_size = __get_current_size;
+            mPreviewStreamExtendedOps.release_buffer = __release_buffer;
 #endif
             if (mDeviceExtendedOps.set_extended_preview_ops) {
                 mDeviceExtendedOps.set_extended_preview_ops(mDevice, &mPreviewStreamExtendedOps);
@@ -904,17 +905,30 @@ private:
 
 #ifdef OMAP_ENHANCEMENT_CPCAM
     static int __update_and_get_buffer(struct preview_stream_ops* w,
-            buffer_handle_t** buffer, int *stride)
+            buffer_handle_t** buffer, int *stride, int *slot)
     {
         ANativeWindow *a = anw(w);
         ANativeWindowBuffer* anb;
-        int status = a->perform(a, NATIVE_WINDOW_UPDATE_AND_GET_CURRENT, &anb);
+        int status = a->perform(a, NATIVE_WINDOW_UPDATE_AND_GET_CURRENT, &anb, slot);
         if (status != OK) {
             return status;
         }
 
         *buffer = &anb->handle;
         *stride = anb->stride;
+        return OK;
+    }
+
+    static int __release_buffer(struct preview_stream_ops* w,
+                                int slot)
+    {
+        ANativeWindow *a = anw(w);
+        ALOGE("__release_buffer %d", slot);
+        int status = a->perform(a, NATIVE_WINDOW_RELEASE_BUFFER, slot);
+        if (status != OK) {
+            return status;
+        }
+
         return OK;
     }
 
