@@ -114,7 +114,11 @@ void TunnelRenderer::StreamSource::onBufferAvailable(size_t index) {
 }
 
 uint32_t TunnelRenderer::StreamSource::flags() const {
+#ifdef OMAP_ENHANCEMENT
+    return kFlagAlignedVideoData | kFlagWfd;
+#else
     return kFlagAlignedVideoData;
+#endif
 }
 
 void TunnelRenderer::StreamSource::doSomeWork() {

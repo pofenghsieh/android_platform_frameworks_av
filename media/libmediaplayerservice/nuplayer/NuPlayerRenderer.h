@@ -51,6 +51,10 @@ struct NuPlayer::Renderer : public AHandler {
         kWhatVideoRenderingStart = 'vdrd',
     };
 
+#ifdef OMAP_ENHANCEMENT
+    void setWfdFlag(bool isWfd) { mIsWfd = isWfd; }
+#endif
+
 protected:
     virtual ~Renderer();
 
@@ -127,6 +131,13 @@ private:
     void flushQueue(List<QueueEntry> *queue);
     bool dropBufferWhileFlushing(bool audio, const sp<AMessage> &msg);
     void syncQueuesDone();
+
+#ifdef OMAP_ENHANCEMENT
+    bool mIsWfd;
+    bool mAudioQueueIsFull;
+    int64_t mLastOverrunDetected;
+    int64_t mContinuousOverrun;
+#endif
 
     DISALLOW_EVIL_CONSTRUCTORS(Renderer);
 };

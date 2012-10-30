@@ -37,6 +37,9 @@ struct IStreamSource : public IInterface {
     enum {
         // Video PES packets contain exactly one (aligned) access unit.
         kFlagAlignedVideoData = 1,
+#ifdef OMAP_ENHANCEMENT
+        kFlagWfd              = 512,
+#endif
     };
     virtual uint32_t flags() const { return 0; }
 };

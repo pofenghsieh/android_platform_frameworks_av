@@ -24,6 +24,13 @@
 #include <media/stagefright/foundation/ADebug.h>
 #include <media/stagefright/foundation/AMessage.h>
 
+#ifdef OMAP_ENHANCEMENT
+static const int kMinSinkMsAvailableToWrite = 10;
+static const int kMinQueueSizeToDropMs = 35;
+static const int kMinQueueSizeToContinueMs = 30;
+static const uint64_t kMaxOverrunTime = 300000;
+#endif
+
 namespace android {
 
 // static
@@ -49,7 +56,15 @@ NuPlayer::Renderer::Renderer(
       mPaused(false),
       mVideoRenderingStarted(false),
       mLastPositionUpdateUs(-1ll),
+#ifdef OMAP_ENHANCEMENT
+      mVideoLateByUs(0ll),
+      mIsWfd(false),
+      mAudioQueueIsFull(false),
+      mLastOverrunDetected(0ll),
+      mContinuousOverrun(0ll) {
+#else
       mVideoLateByUs(0ll) {
+#endif
 }
 
 NuPlayer::Renderer::~Renderer() {
@@ -239,6 +254,57 @@ bool NuPlayer::Renderer::onDrainAudioQueue() {
     size_t numBytesAvailableToWrite =
         numFramesAvailableToWrite * mAudioSink->frameSize();
 
+#ifdef OMAP_ENHANCEMENT
+    float msPerByte = mAudioSink->msecsPerFrame() / mAudioSink->frameSize();
+
+    if (mIsWfd) {
+        if (mAudioQueueIsFull
+                && ((numBytesAvailableToWrite * msPerByte)
+                < kMinSinkMsAvailableToWrite)) {
+            float queuedMs = 0;
+            for (List<QueueEntry>::iterator iter = mAudioQueue.begin();
+                    iter != mAudioQueue.end(); ++iter) {
+                if ((*iter).mBuffer != NULL) {
+                    queuedMs += (*iter).mBuffer->size() * msPerByte;
+                } else {
+                    break;
+                }
+            }
+            if (queuedMs > kMinQueueSizeToDropMs) {
+                if (mContinuousOverrun > kMaxOverrunTime) {
+                    do {
+                        QueueEntry *entry = &*mAudioQueue.begin();
+                        if (entry->mBuffer != NULL) {
+                            ALOGW("Flushing %d bytes from audio queue", entry->mBuffer->size());
+                            queuedMs -= entry->mBuffer->size() * msPerByte;
+                            entry->mNotifyConsumed->post();
+                            mAudioQueue.erase(mAudioQueue.begin());
+                            if (queuedMs <= kMinQueueSizeToContinueMs) {
+                                break;
+                            }
+                        } else {
+                            break;
+                        }
+                    } while (!mAudioQueue.empty());
+                    return false;
+                } else {
+                    int64_t nowUs = ALooper::GetNowUs();
+                    if (mLastOverrunDetected == 0) {
+                        mLastOverrunDetected = nowUs;
+                    } else {
+                        mContinuousOverrun += (nowUs - mLastOverrunDetected);
+                        mLastOverrunDetected = nowUs;
+                    }
+                }
+            } else {
+                mContinuousOverrun = 0;
+            }
+        } else {
+            mContinuousOverrun = 0;
+        }
+    }
+#endif
+
     while (numBytesAvailableToWrite > 0 && !mAudioQueue.empty()) {
         QueueEntry *entry = &*mAudioQueue.begin();
 
@@ -299,6 +365,12 @@ bool NuPlayer::Renderer::onDrainAudioQueue() {
         mNumFramesWritten += copiedFrames;
     }
 
+#ifdef OMAP_ENHANCEMENT
+    if (numBytesAvailableToWrite == 0) {
+        mAudioQueueIsFull = true;
+    }
+#endif
+
     notifyPosition();
 
     return !mAudioQueue.empty();
@@ -323,6 +395,11 @@ void NuPlayer::Renderer::postDrainVideoQueue() {
     if (entry.mBuffer == NULL) {
         // EOS doesn't carry a timestamp.
         delayUs = 0;
+#ifdef OMAP_ENHANCEMENT
+    } else if (mIsWfd && !mHasAudio) {
+        // For Wfd render video immediately if no audio for sync
+        delayUs = 0;
+#endif
     } else {
         int64_t mediaTimeUs;
         CHECK(entry.mBuffer->meta()->findInt64("timeUs", &mediaTimeUs));

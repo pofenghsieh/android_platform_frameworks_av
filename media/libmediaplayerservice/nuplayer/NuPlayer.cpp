@@ -69,7 +69,12 @@ NuPlayer::NuPlayer()
       mVideoLateByUs(0ll),
       mNumFramesTotal(0ll),
       mNumFramesDropped(0ll),
+#ifdef OMAP_ENHANCEMENT
+      mVideoScalingMode(NATIVE_WINDOW_SCALING_MODE_SCALE_TO_WINDOW),
+      mIsWfd(false) {
+#else
       mVideoScalingMode(NATIVE_WINDOW_SCALING_MODE_SCALE_TO_WINDOW) {
+#endif
 }
 
 NuPlayer::~NuPlayer() {
@@ -86,6 +91,10 @@ void NuPlayer::setDriver(const wp<NuPlayerDriver> &driver) {
 
 void NuPlayer::setDataSource(const sp<IStreamSource> &source) {
     sp<AMessage> msg = new AMessage(kWhatSetDataSource, id());
+
+#ifdef OMAP_ENHANCEMENT
+     mIsWfd = source->flags() & IStreamSource::kFlagWfd;
+#endif
 
     char prop[PROPERTY_VALUE_MAX];
     if (property_get("media.stagefright.use-mp4source", prop, NULL)
@@ -254,6 +263,10 @@ void NuPlayer::onMessageReceived(const sp<AMessage> &msg) {
                     mAudioSink,
                     new AMessage(kWhatRendererNotify, id()));
 
+#ifdef OMAP_ENHANCEMENT
+            mRenderer->setWfdFlag(mIsWfd);
+#endif
+
             looper()->registerHandler(mRenderer);
 
             postScanSources();
@@ -322,7 +335,12 @@ void NuPlayer::onMessageReceived(const sp<AMessage> &msg) {
 
                 if (err == -EWOULDBLOCK) {
                     if (mSource->feedMoreTSData() == OK) {
+#ifdef OMAP_ENHANCEMENT
+                        // Don't waste 10ms, feed parser as more as we can
+                        msg->post(mIsWfd ? 0 : 10000ll);
+#else
                         msg->post(10000ll);
+#endif
                     }
                 }
             } else if (what == ACodec::kWhatEOS) {

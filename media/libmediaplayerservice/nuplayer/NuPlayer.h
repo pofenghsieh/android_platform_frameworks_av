@@ -150,6 +150,10 @@ private:
     void finishReset();
     void postScanSources();
 
+#ifdef OMAP_ENHANCEMENT
+    bool mIsWfd;
+#endif
+
     DISALLOW_EVIL_CONSTRUCTORS(NuPlayer);
 };
 
