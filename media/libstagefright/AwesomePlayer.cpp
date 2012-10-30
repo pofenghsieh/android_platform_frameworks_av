@@ -1867,6 +1867,12 @@ void AwesomePlayer::onVideoEvent() {
 
         ATRACE_INT("Video Lateness (ms)", latenessUs / 1E3);
 
+        int32_t mVideoFPS;
+        if (!(mVideoTrack->getFormat()->findInt32(kKeyVideoFPS, &mVideoFPS))) {
+            mVideoFPS = 30;     //default value in case of FPS data not found
+        }
+        int64_t frame_interval = 1000000ll/mVideoFPS;
+
         if (latenessUs > 500000ll
                 && mAudioPlayer != NULL
                 && mAudioPlayer->getMediaTimeMapping(
@@ -1895,8 +1901,8 @@ void AwesomePlayer::onVideoEvent() {
             return;
         }
 
-        if (latenessUs > 40000) {
-            // We're more than 40ms late.
+        if (latenessUs > frame_interval) {
+            // We're more than one frame late. Dropping frame.
             ALOGV("we're late by %lld us (%.2f secs)",
                  latenessUs, latenessUs / 1E6);
 
@@ -1905,7 +1911,7 @@ void AwesomePlayer::onVideoEvent() {
             {
 #ifdef OMAP_ENHANCEMENT
                 if (mDebugFps != 0) {
-                    ALOGV("we're late by %lld us (%.2f secs) dropping "
+                    ALOGD("we're late by %lld us (%.2f secs) dropping "
                         "one after %d frames",
                         latenessUs, latenessUs / 1E6, mSinceLastDropped);
                 }
@@ -1933,15 +1939,17 @@ void AwesomePlayer::onVideoEvent() {
             }
         }
 
-        if (latenessUs < -10000) {
-            // We're more than 10ms early.
 #if defined(OMAP_ENHANCEMENT) && defined(OMAP_TIME_INTERPOLATOR)
+        if (latenessUs < -2000) {
+            // We're more than 2ms early. Re-posting frame.
             if (-latenessUs > 100000) {
-                postVideoEvent_l(10000);
+                postVideoEvent_l(100000);
             } else {
                 postVideoEvent_l(latenessUs * -1);
             }
 #else
+        if (latenessUs < -10000) {
+            // We're more than 10ms early.
             postVideoEvent_l(10000);
 #endif
             return;
