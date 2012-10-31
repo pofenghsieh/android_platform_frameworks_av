@@ -161,4 +161,29 @@ ssize_t NuPlayer::NuPlayerStreamListener::read(
     return copy;
 }
 
+#ifdef OMAP_ENHANCEMENT
+status_t NuPlayer::NuPlayerStreamListener::dequeueAccessUnit(
+        sp<ABuffer> buffer,
+        sp<AMessage> *extra) {
+
+    if (mEOS) {
+        return ERROR_END_OF_STREAM;
+    }
+
+    if (mQueue.empty()) {
+        mSendDataNotification = true;
+        return EWOULDBLOCK;
+    }
+
+    ssize_t n = read(buffer->data(), buffer->capacity(), extra);
+
+    if (n == INFO_DISCONTINUITY) {
+        return INFO_DISCONTINUITY;
+    }
+
+    buffer->setRange(0, n);
+
+    return OK;
+}
+#endif
 }  // namespace android
