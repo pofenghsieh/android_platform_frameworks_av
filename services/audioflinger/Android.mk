@@ -67,6 +67,13 @@ ifeq ($(OMAP_ENHANCEMENT), true)
         POSTPRO_PATH := $(LOCAL_PATH)/../srs_processing
         include $(POSTPRO_PATH)/AF_PATCH_JB.mk
     endif
+
+    DS_HEADER := $(wildcard system/media/audio_effects/include/audio_effects/effect_ds.h)
+    ifdef DS_HEADER
+        LOCAL_CFLAGS += -DDOLBY_AUDIOEFFECT_DS
+        LOCAL_CFLAGS += -DDOLBY_AUDIOEFFECT_DS_PREGAIN
+        LOCAL_CFLAGS += -DDOLBY_AUDIOEFFECT_DS_POSTGAIN
+    endif
 endif
 
 LOCAL_MODULE:= libaudioflinger
