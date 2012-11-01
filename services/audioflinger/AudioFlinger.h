@@ -1677,6 +1677,9 @@ private:
 
         status_t         setDevice(audio_devices_t device);
         status_t         setVolume(uint32_t *left, uint32_t *right, bool controller);
+#if defined(DOLBY_AUDIOEFFECT_DS) && (DOLBY_AUDIOEFFECT_DS_PREGAIN)
+        status_t         setDsPregain(uint32_t *left, uint32_t *right);
+#endif // DOLBY_AUDIOEFFECT_DS && DOLBY_AUDIOEFFECT_DS_PREGAIN
         status_t         setMode(audio_mode_t mode);
         status_t         setAudioSource(audio_source_t source);
         status_t         start();
@@ -1723,6 +1726,10 @@ mutable Mutex               mLock;      // mutex for process, commands and handl
                                         // sending disable command.
         uint32_t mDisableWaitCnt;       // current process() calls count during disable period.
         bool     mSuspended;            // effect is suspended: temporarily disabled by framework
+#if defined(DOLBY_AUDIOEFFECT_DS) && (DOLBY_AUDIOEFFECT_DS_PREGAIN)
+        uint32_t mDsLeftVolume;
+        uint32_t mDsRightVolume;
+#endif // DOLBY_AUDIOEFFECT_DS && DOLBY_AUDIOEFFECT_DS_PREGAIN
     };
 
     // The EffectHandle class implements the IEffect interface. It provides resources

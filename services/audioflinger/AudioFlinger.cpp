@@ -89,6 +89,10 @@
 #include "postpro_patch_jb.h"
 #endif
 
+#ifdef DOLBY_AUDIOEFFECT_DS
+#include <audio_effects/effect_ds.h>
+#endif // DOLBY_AUDIOEFFECT_DS
+
 // ----------------------------------------------------------------------------
 
 // Note: the following macro is used for extremely verbose logging message.  In
@@ -2957,6 +2961,15 @@ AudioFlinger::PlaybackThread::mixer_state AudioFlinger::MixerThread::prepareTrac
     float masterVolume = mMasterVolume;
     bool masterMute = mMasterMute;
 
+#if defined(DOLBY_AUDIOEFFECT_DS) && (DOLBY_AUDIOEFFECT_DS_PREGAIN)
+    // The DS pregain for the left channel.
+    uint32_t vl_ds_pregain = 0;
+    // The DS pregain for the right channel.
+    uint32_t vr_ds_pregain = 0;
+    // The number of pausing tracks.
+    size_t pausingTracks = 0;
+#endif // DOLBY_AUDIOEFFECT_DS && DOLBY_AUDIOEFFECT_DS_PREGAIN
+
     if (masterMute) {
         masterVolume = 0;
     }
@@ -3209,6 +3222,9 @@ AudioFlinger::PlaybackThread::mixer_state AudioFlinger::MixerThread::prepareTrac
                 mStreamTypes[track->streamType()].mute) {
                 vl = vr = va = 0;
                 if (track->isPausing()) {
+#if defined(DOLBY_AUDIOEFFECT_DS) && (DOLBY_AUDIOEFFECT_DS_PREGAIN)
+                    pausingTracks++;
+#endif // DOLBY_AUDIOEFFECT_DS && DOLBY_AUDIOEFFECT_DS_PREGAIN
                     track->setPaused();
                 }
             } else {
@@ -3255,6 +3271,12 @@ AudioFlinger::PlaybackThread::mixer_state AudioFlinger::MixerThread::prepareTrac
                 }
                 track->mHasVolumeController = false;
             }
+
+#if defined(DOLBY_AUDIOEFFECT_DS) && (DOLBY_AUDIOEFFECT_DS_PREGAIN)
+           // Select the maximum volume as the pregain by scanning all the active audio tracks.
+           vl_ds_pregain = (vl_ds_pregain >= vl) ? vl_ds_pregain : vl;
+           vr_ds_pregain = (vr_ds_pregain >= vr) ? vr_ds_pregain : vr;
+#endif // DOLBY_AUDIOEFFECT_DS && DOLBY_AUDIOEFFECT_DS_PREGAIN
 
             // Convert volumes from 8.24 to 4.12 format
             // This additional clamping is needed in case chain->setVolume_l() overshot
@@ -3429,6 +3451,25 @@ track_is_ready: ;
     if (fastTracks > 0) {
         mixerStatus = MIXER_TRACKS_READY;
     }
+
+#if defined(DOLBY_AUDIOEFFECT_DS) && (DOLBY_AUDIOEFFECT_DS_PREGAIN)
+    // Update the DS effect module volume with the calculated pregain, which is got by selecting the maximum volume
+    // among all the active tracks.
+    chain.clear();
+    chain = getEffectChain_l(AUDIO_SESSION_OUTPUT_MIX);
+    if (chain != 0) {
+    // Skip the DS pregain setting if there're no active tracks, or all the active tracks are pausing ones,
+    // so that the last pregain will be adopted and zero volume level will not be sent in the 2 cases above.
+        if (mixedTracks != 0 && mixedTracks != pausingTracks) {
+            sp<EffectModule> dsEffect;
+            dsEffect = chain->getEffectFromType_l(EFFECT_SL_IID_DS);
+            if (dsEffect != 0)
+                dsEffect->setDsPregain(&vl_ds_pregain, &vr_ds_pregain);
+        }
+        chain.clear();
+    }
+#endif // DOLBY_AUDIOEFFECT_DS && DOLBY_AUDIOEFFECT_DS_PREGAIN
+
     return mixerStatus;
 }
 
@@ -8275,6 +8316,9 @@ AudioFlinger::EffectModule::EffectModule(ThreadBase *thread,
       // mMaxDisableWaitCnt is set by configure() and not used before then
       // mDisableWaitCnt is set by process() and updateState() and not used before then
       mSuspended(false)
+#if defined(DOLBY_AUDIOEFFECT_DS) && (DOLBY_AUDIOEFFECT_DS_PREGAIN)
+    , mDsLeftVolume(UINT_MAX), mDsRightVolume(UINT_MAX)
+#endif // DOLBY_AUDIOEFFECT_DS && DOLBY_AUDIOEFFECT_DS_PREGAIN
 {
     ALOGV("Constructor %p", this);
     int lStatus;
@@ -8841,6 +8885,33 @@ status_t AudioFlinger::EffectModule::setVolume(uint32_t *left, uint32_t *right, 
     }
     return status;
 }
+
+#if defined(DOLBY_AUDIOEFFECT_DS) && (DOLBY_AUDIOEFFECT_DS_PREGAIN)
+status_t AudioFlinger::EffectModule::setDsPregain(uint32_t *left, uint32_t *right)
+{
+    Mutex::Autolock _l(mLock);
+    status_t status = NO_ERROR;
+    uint32_t volume[2];
+    uint32_t size = sizeof(volume);
+    volume[0] = *left;
+    volume[1] = *right;
+
+    if (mDsLeftVolume != volume[0] || mDsRightVolume != volume[1]) {
+    status = (*mEffectInterface)->command(mEffectInterface,
+                                            EFFECT_CMD_DOLBY_SET_PREGAIN,
+                                            size,
+                                            volume,
+                                            &size,
+                                            NULL);
+        if (status == NO_ERROR && size == sizeof(volume)) {
+            mDsLeftVolume = volume[0];
+            mDsRightVolume = volume[1];
+        }
+    }
+
+    return status;
+}
+#endif // DOLBY_AUDIOEFFECT_DS && DOLBY_AUDIOEFFECT_DS_PREGAIN
 
 status_t AudioFlinger::EffectModule::setDevice(audio_devices_t device)
 {
