@@ -3922,7 +3922,18 @@ status_t OMXCodec::start(MetaData *meta) {
         CODEC_LOGE("source failed to start: %d", err);
         return err;
     }
+
+#ifdef OMAP_ENHANCEMENT
+    err = init();
+
+    if (err != OK) {
+        mSource->stop();
+    }
+
+    return err;
+#else
     return init();
+#endif
 }
 
 status_t OMXCodec::stop() {
