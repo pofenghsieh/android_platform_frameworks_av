@@ -241,6 +241,12 @@ private:
 
 #ifdef OMAP_ENHANCEMENT
     bool mInitialBufferRead;
+    int mFcnt;
+    int mAvsyncsse;
+    int mMaxAdvanceMs;
+    int mMaxLatenessMs;
+    int64_t mNextEventUs;
+    int mVSref2SystimePrev;
 #endif
 
     status_t setDataSource_l(

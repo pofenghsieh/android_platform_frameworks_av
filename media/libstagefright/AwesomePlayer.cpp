@@ -76,6 +76,8 @@ static const size_t kHighWaterMarkBytes = 200000;
 #ifdef OMAP_ENHANCEMENT
 
 static int mDebugFps = 0;
+static int mDebugAvsync = 0;
+
 static void debugShowFPS()
 {
     static int mFrameCount = 0;
@@ -158,6 +160,10 @@ struct AwesomeNativeWindowRenderer : public AwesomeRenderer {
     property_get("debug.video.showfps", value, "0");
     mDebugFps = atoi(value);
     ALOGD_IF(mDebugFps, "showfps enabled");
+
+    property_get("debug.video.showavsync", value, "0");
+    mDebugAvsync = atoi(value);
+    ALOGD_IF(mDebugAvsync, "Avsync trace enabled");
 #endif
     }
 
@@ -239,6 +245,12 @@ AwesomePlayer::AwesomePlayer()
 #ifdef OMAP_ENHANCEMENT
       mInitialBufferRead(true),
       mTextDriver(NULL),
+      mFcnt(0),
+      mAvsyncsse(0),
+      mMaxAdvanceMs(0),
+      mMaxLatenessMs(0),
+      mNextEventUs(0),
+      mVSref2SystimePrev(0),
       mExtractorType(NULL) {
 #else
       mTextDriver(NULL) {
@@ -1675,6 +1687,14 @@ void AwesomePlayer::onVideoEvent() {
     }
     mVideoEventPending = false;
 
+#if defined(OMAP_ENHANCEMENT)
+    /* AVsync trace : Trace the wakeup accuracy */
+    if( mDebugAvsync & 0x1 ) {
+         int64_t systimeUs = systemTime()/1000;
+         ALOGD( "VidEvent: systimeUs %lld   ExpectedUs: %lld   DeltaUs: %lld", systimeUs, mNextEventUs, systimeUs-mNextEventUs );
+    }
+#endif
+
     if (mSeeking != NO_SEEK) {
         if (mVideoBuffer) {
             mVideoBuffer->release();
@@ -1850,11 +1870,15 @@ void AwesomePlayer::onVideoEvent() {
         }
     }
 
+#if defined(OMAP_ENHANCEMENT) && defined(OMAP_TIME_INTERPOLATOR)
+    /* AV sync trace need to have nowUs visible later on */
+    int64_t nowUs = ts->getRealTimeUs();
+#endif
+
     if (wasSeeking == NO_SEEK) {
         // Let's display the first frame after seeking right away.
 
 #if defined(OMAP_ENHANCEMENT) && defined(OMAP_TIME_INTERPOLATOR)
-        int64_t nowUs = ts->getRealTimeUs();
 
         if (ts == (TimeSource*)&mSystemTimeSource) {
             /* At end of audio stream, clock switches back to system clock.
@@ -1955,6 +1979,11 @@ void AwesomePlayer::onVideoEvent() {
             if (-latenessUs > 100000) {
                 postVideoEvent_l(100000);
             } else {
+                /* AVsync trace: For tracing the wakeup accuracy */
+                if( mDebugAvsync & 0x1 ) {
+                     int64_t systimeUs = systemTime()/1000;
+                     mNextEventUs = systimeUs - latenessUs;
+                }
                 postVideoEvent_l(latenessUs * -1);
             }
 #else
@@ -1974,6 +2003,36 @@ void AwesomePlayer::onVideoEvent() {
     }
 
     if (mVideoRenderer != NULL) {
+#if defined(OMAP_ENHANCEMENT)
+        if( mDebugAvsync ) {
+            /* AVsync trace: Log actual time of frame Queuing, audio/system clock and Presentation Time Stamp */
+            int64_t systimeUs = systemTime()/1000;
+            ALOGD_IF( (mDebugAvsync & 0x1), "QueueBuf: systimeUs %lld   AVrefUs: %lld   PtsUs: %lld", systimeUs, nowUs, timeUs );
+            /* SystimeUs - AVrefUs should be constant */
+            int VSref2Systime, VSrefFidelityMs;
+            VSref2Systime = (int) (systimeUs - nowUs);
+            VSrefFidelityMs = ((VSref2Systime - mVSref2SystimePrev)/1000);
+            mVSref2SystimePrev = VSref2Systime;
+            /* lateness (PTS - AVclock) should be small */
+            int latenessMs = (int) ((nowUs - timeUs)/1000);
+            ALOGD_IF( (mDebugAvsync & 0x2) && ((VSrefFidelityMs <= -1) || (VSrefFidelityMs >= 1) || (latenessMs >= 2) || (latenessMs <= -2)),
+                     "AVsync  : systimeUs %lld   VSrefFidelityMs %2d   LatenessMs %2d\n", systimeUs, VSrefFidelityMs, latenessMs );
+            /* lateness error calculate SUM OF SQUARE ERROR and MaxErrorMs */
+            int lateness = (int) (nowUs - timeUs);
+            mAvsyncsse += ( ((int) lateness/100) * ((int) lateness/100) ) / 100; /* sse in ms */
+            if( latenessMs < mMaxAdvanceMs  ) mMaxAdvanceMs = latenessMs;
+            if( latenessMs > mMaxLatenessMs ) mMaxLatenessMs = latenessMs;
+            mFcnt++;
+            if( (mFcnt & 0x20) ) {
+                ALOGD_IF( (mDebugAvsync & 0x4), "Avsync(ms)  Variance %2d  MaxJitter [ %-2d : %2d ]", mAvsyncsse>>5, mMaxAdvanceMs, mMaxLatenessMs );
+                mFcnt = 0;
+                mAvsyncsse = 0;
+                mMaxAdvanceMs = 0;
+                mMaxLatenessMs = 0;
+            }
+
+         }
+#endif
         mSinceLastDropped++;
         mVideoRenderer->render(mVideoBuffer);
         if (!mVideoRenderingStarted) {
@@ -1983,13 +2042,36 @@ void AwesomePlayer::onVideoEvent() {
 
     }
 
+#if defined(OMAP_ENHANCEMENT)
+    /* AVsync : For tracing release() time */
+    int64_t releasingUs;
+    if( mDebugAvsync & 0x1 ) {
+        releasingUs = systemTime()/1000;
+    }
+#endif
+
     mVideoBuffer->release();
     mVideoBuffer = NULL;
+
+#if defined(OMAP_ENHANCEMENT)
+    /* AVsync : Trace tracing release() time */
+    if( mDebugAvsync & 0x1 ) {
+        int64_t releasedUs = systemTime()/1000;
+        ALOGD("ReleasUs: systimeUs %lld   TReleaseUs: %lld", releasedUs, releasedUs-releasingUs );
+    }
+#endif
 
     if (wasSeeking != NO_SEEK && (mFlags & SEEK_PREVIEW)) {
         modifyFlags(SEEK_PREVIEW, CLEAR);
         return;
     }
+
+#if defined(OMAP_ENHANCEMENT)
+    /* AVsync : For tracing wakeup accuracy */
+    if( mDebugAvsync & 0x1 ) {
+        mNextEventUs = systemTime()/1000;
+    }
+#endif
 
 #if defined(OMAP_ENHANCEMENT) && defined(OMAP_TIME_INTERPOLATOR)
     postVideoEvent_l(0);
