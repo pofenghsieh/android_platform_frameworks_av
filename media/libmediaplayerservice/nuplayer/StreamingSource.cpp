@@ -104,8 +104,15 @@ status_t NuPlayer::StreamingSource::feedMoreTSData() {
                 if (err != OK) {
                     ALOGE("TS Parser returned error %d", err);
 
+#ifdef OMAP_ENHANCEMENT
+                    if (!(mSource->flags() & IStreamSource::kFlagWfd)) {
+                        mTSParser->signalEOS(err);
+                        mFinalResult = err;
+                    }
+#else
                     mTSParser->signalEOS(err);
                     mFinalResult = err;
+#endif
                     break;
                 }
             }
