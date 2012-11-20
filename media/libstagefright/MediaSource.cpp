@@ -18,11 +18,25 @@
 
 namespace android {
 
-MediaSource::MediaSource() {}
+#ifdef OMAP_ENHANCEMENT
+MediaSource::MediaSource():
+    mAudioIsNotValid(false){}
+#else
+MediaSource::MediaSource(){}
+#endif
 
 MediaSource::~MediaSource() {}
 
 ////////////////////////////////////////////////////////////////////////////////
+
+#ifdef OMAP_ENHANCEMENT
+void MediaSource::setAudioIsNotValid(bool flag){
+    mAudioIsNotValid = flag;
+}
+bool MediaSource::getAudioIsNotValid(){
+    return mAudioIsNotValid;
+}
+#endif
 
 MediaSource::ReadOptions::ReadOptions() {
     reset();

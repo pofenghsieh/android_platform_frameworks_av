@@ -35,6 +35,10 @@ class MetaData;
 struct MediaSource : public virtual RefBase {
     MediaSource();
 
+#ifdef OMAP_ENHANCEMENT
+    void setAudioIsNotValid(bool flag);
+    bool getAudioIsNotValid();
+#endif
     // To be called before any other methods on this object, except
     // getFormat().
     virtual status_t start(MetaData *params = NULL) = 0;
@@ -120,6 +124,7 @@ private:
     MediaSource &operator=(const MediaSource &);
 
 #ifdef OMAP_ENHANCEMENT
+    bool mAudioIsNotValid;
 public:
     virtual status_t setParameter(const String8 &key, const String8 &value){
         return OK;

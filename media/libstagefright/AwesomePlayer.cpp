@@ -875,6 +875,13 @@ void AwesomePlayer::onStreamDone() {
     mStreamDoneEventPending = false;
 
     if (mStreamDoneStatus != ERROR_END_OF_STREAM) {
+#ifdef OMAP_ENHANCEMENT
+        if (mAudioTrack->getAudioIsNotValid()){
+            mAudioSource->stop();
+            mAudioSource = NULL;
+            return;
+        }
+#endif
         ALOGV("MEDIA_ERROR %d", mStreamDoneStatus);
 
         notifyListener_l(
