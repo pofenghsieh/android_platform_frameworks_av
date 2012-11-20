@@ -909,6 +909,23 @@ void AwesomePlayer::onStreamDone() {
     mStreamDoneEventPending = false;
 
     if (mStreamDoneStatus != ERROR_END_OF_STREAM) {
+#ifdef OMAP_ENHANCEMENT
+        sp<MetaData> meta = mAudioTrack->getFormat();
+        const char *mime;
+        bool success = meta->findCString(kKeyMIMEType, &mime);
+        if (mAudioTrack->getAudioIsNotValid() && strcasecmp(mime, "audio/mpeg") == 0){
+            mAudioSink = NULL;
+            if (mAudioSource != NULL){
+                mAudioSource->stop();
+                mAudioSource = NULL;
+                mTimeSource = &mSystemTimeSource;
+                modifyFlags(AUDIO_RUNNING, CLEAR);
+            } else if (mAudioSource == NULL && !(mFlags & PLAYING)) {
+                mTimeSource = &mSystemTimeSource;
+            }
+            return;
+        }
+#endif
         ALOGV("MEDIA_ERROR %d", mStreamDoneStatus);
 
         notifyListener_l(

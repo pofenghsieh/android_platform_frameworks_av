@@ -2643,6 +2643,9 @@ void OMXCodec::onEvent(OMX_EVENTTYPE event, OMX_U32 data1, OMX_U32 data2) {
         {
             CODEC_LOGE("ERROR(0x%08lx, %ld)", data1, data2);
 #ifdef OMAP_ENHANCEMENT
+            if (!mIsVideo) {
+                mSource->setAudioIsNotValid(true);
+            }
             if (!isIntermediateState(mState)) {
                 setState(ERROR);
             }
