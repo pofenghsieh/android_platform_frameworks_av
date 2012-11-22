@@ -3954,7 +3954,16 @@ status_t OMXCodec::start(MetaData *meta) {
     mFilledBuffers.clear();
     mPaused = false;
 
+#ifdef OMAP_ENHANCEMENT
+    err = init();
+
+    if( err != OK )
+        mSource->stop();
+
+    return err;
+#else
     return init();
+#endif
 }
 
 status_t OMXCodec::stop() {
