@@ -581,6 +581,15 @@ status_t Converter::doMoreWork() {
 
             if (flags & MediaCodec::BUFFER_FLAG_CODECCONFIG) {
                 mOutputFormat->setBuffer("csd-0", buffer);
+#ifdef OMAP_ENHANCEMENT
+                if (mIsVideo) {
+                    buffer->meta()->setInt32("csd", 1);
+                    sp<AMessage> notify = mNotify->dup();
+                    notify->setInt32("what", kWhatAccessUnit);
+                    notify->setBuffer("accessUnit", buffer);
+                    notify->post();
+                }
+#endif
             } else {
                 sp<AMessage> notify = mNotify->dup();
                 notify->setInt32("what", kWhatAccessUnit);

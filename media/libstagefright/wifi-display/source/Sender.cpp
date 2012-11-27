@@ -369,7 +369,16 @@ void Sender::queuePackets(
     int64_t delayUs;
     int64_t whenUs;
 
+#ifdef OMAP_ENHANCEMENT
+    int32_t is_csd = 0;
+
+    if (packets->meta()->findInt32("csd", &is_csd) && is_csd) {
+        delayUs = 0;
+        timeUs = 0;
+    } else if (mFirstOutputBufferReadyTimeUs < 0ll) {
+#else
     if (mFirstOutputBufferReadyTimeUs < 0ll) {
+#endif
         mFirstOutputBufferReadyTimeUs = timeUs;
         mFirstOutputBufferSentTimeUs = whenUs = ALooper::GetNowUs();
         delayUs = 0ll;

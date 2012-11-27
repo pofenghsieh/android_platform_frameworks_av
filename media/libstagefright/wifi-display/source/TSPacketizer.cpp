@@ -473,6 +473,14 @@ status_t TSPacketizer::packetize(
     }
 
     sp<ABuffer> buffer = new ABuffer(numTSPackets * 188);
+
+#ifdef OMAP_ENHANCEMENT
+    int32_t is_csd = 0;
+    if (accessUnit->meta()->findInt32("csd", &is_csd) && is_csd) {
+        buffer->meta()->setInt32("csd", 1);
+    }
+#endif
+
     uint8_t *packetDataStart = buffer->data();
 
     if (flags & EMIT_PAT_AND_PMT) {
