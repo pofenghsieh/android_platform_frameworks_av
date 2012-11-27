@@ -194,7 +194,12 @@ AwesomePlayer::AwesomePlayer()
       mVideoBuffer(NULL),
       mDecryptHandle(NULL),
       mLastVideoTimeUs(-1),
+#ifdef OMAP_ENHANCEMENT
+      mTextDriver(NULL),
+      mExtractorType(NULL) {
+#else
       mTextDriver(NULL) {
+#endif
     CHECK_EQ(mClient.connect(), (status_t)OK);
 
     DataSource::RegisterDefaultSniffers();
