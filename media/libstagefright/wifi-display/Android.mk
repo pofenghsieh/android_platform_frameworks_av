@@ -21,6 +21,7 @@ LOCAL_SRC_FILES:= \
 ifeq ($(OMAP_ENHANCEMENT), true)
 LOCAL_SRC_FILES+= \
         ElementaryParser.cpp            \
+        VideoParameters.cpp             \
 
 endif
 
@@ -28,6 +29,11 @@ LOCAL_C_INCLUDES:= \
         $(TOP)/frameworks/av/media/libstagefright \
         $(TOP)/frameworks/native/include/media/openmax \
         $(TOP)/frameworks/av/media/libstagefright/mpeg2ts \
+
+ifeq ($(OMAP_ENHANCEMENT), true)
+LOCAL_C_INCLUDES+= \
+        $(TOP)/hardware/ti/domx/omx_core/inc
+endif
 
 LOCAL_SHARED_LIBRARIES:= \
         libbinder                       \
