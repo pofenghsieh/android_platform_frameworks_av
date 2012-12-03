@@ -23,6 +23,7 @@ LOCAL_SRC_FILES+= \
         ElementaryParser.cpp            \
         VideoParameters.cpp             \
         AudioParameters.cpp             \
+        UibcParameters.cpp              \
 
 endif
 
