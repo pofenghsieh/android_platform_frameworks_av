@@ -78,6 +78,7 @@ private:
         kWhatStop,
 #ifdef OMAP_ENHANCEMENT
         kWhatAction,
+        kWhatTimeoutM16,
 #endif
     };
 
@@ -105,6 +106,11 @@ private:
 
     static const bool sUseTCPInterleaving = false;
 
+#ifdef OMAP_ENHANCEMENT
+    static const int kM16DefaultTimeoutSecs = 60;
+    static const int kM16MinTimeoutSecs = 10;
+#endif
+
     State mState;
     sp<ANetworkSession> mNetSession;
     sp<ISurfaceTexture> mSurfaceTex;
@@ -121,6 +127,8 @@ private:
     int32_t mPlaybackSessionTimeoutSecs;
 
 #ifdef OMAP_ENHANCEMENT
+    int32_t mM16TimeoutCounter;
+
     sp<VideoParameters> mVideoParams;
     sp<AudioParameters> mAudioParams;
 
@@ -134,6 +142,7 @@ private:
     status_t sendPlay(int32_t sessionID, const char *uri);
 
 #ifdef OMAP_ENHANCEMENT
+    void prepareKeepAliveTimeoutCheck();
     status_t sendPause(int32_t sessionID, const char *uri);
     status_t sendTeardown(int32_t sessionID, const char *uri);
     status_t extractPresentationURL(const char *str);

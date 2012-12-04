@@ -366,6 +366,20 @@ void WifiDisplaySink::onMessageReceived(const sp<AMessage> &msg) {
             }
             break;
         }
+
+        case kWhatTimeoutM16:
+        {
+            int32_t timeoutCounter;
+            CHECK(msg->findInt32("m16_counter", &timeoutCounter));
+            ALOGV("TimeoutM16 message received, %d, %d", timeoutCounter, mM16TimeoutCounter);
+
+            if (mM16TimeoutCounter == timeoutCounter &&
+                    (mState == PAUSED || mState == PLAYING)) {
+                ALOGE("Timeout. Keep alive message was not found.");
+                sendTeardown(mSessionID, mSetupURI.c_str());
+            }
+            break;
+        }
 #endif
 
         default:
@@ -473,6 +487,11 @@ status_t WifiDisplaySink::onReceiveSetupResponse(
 
     mState = PAUSED;
 
+#ifdef OMAP_ENHANCEMENT
+    mM16TimeoutCounter = 0;
+    prepareKeepAliveTimeoutCheck();
+#endif
+
     return sendPlay(
             sessionID,
             !mSetupURI.empty()
@@ -538,6 +557,19 @@ status_t WifiDisplaySink::onReceivePlayResponse(
 }
 
 #ifdef OMAP_ENHANCEMENT
+void WifiDisplaySink::prepareKeepAliveTimeoutCheck() {
+    mM16TimeoutCounter++;
+
+    sp<AMessage> msg = new AMessage(kWhatTimeoutM16, id());
+    msg->setInt32("m16_counter", mM16TimeoutCounter);
+
+    if (mPlaybackSessionTimeoutSecs < kM16MinTimeoutSecs) {
+        msg->post(kM16DefaultTimeoutSecs * 1000 * 1000);
+    } else {
+        msg->post(mPlaybackSessionTimeoutSecs * 1000 * 1000);
+    }
+}
+
 status_t WifiDisplaySink::onReceivePauseResponse(
         int32_t sessionID, const sp<ParsedMessage> &msg) {
     int32_t statusCode;
@@ -667,6 +699,9 @@ void WifiDisplaySink::onGetParameterRequest(
         // If message content length equal zero, this message is
         // keep alive message M16
         sendOK(sessionID, cseq);
+
+        prepareKeepAliveTimeoutCheck();
+
         return;
     }
 
