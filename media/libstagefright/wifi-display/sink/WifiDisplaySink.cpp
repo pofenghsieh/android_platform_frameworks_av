@@ -84,6 +84,24 @@ status_t WifiDisplaySink::postStartMessage(const sp<AMessage> &msg) {
 
     return err;
 }
+
+void WifiDisplaySink::play() {
+    sp<AMessage> msg = new AMessage(kWhatAction, id());
+    msg->setInt32("action", kActionPlay);
+    msg->post();
+}
+
+void WifiDisplaySink::pause() {
+    sp<AMessage> msg = new AMessage(kWhatAction, id());
+    msg->setInt32("action", kActionPause);
+    msg->post();
+}
+
+void WifiDisplaySink::teardown() {
+    sp<AMessage> msg = new AMessage(kWhatAction, id());
+    msg->setInt32("action", kActionTeardown);
+    msg->post();
+}
 #else
 void WifiDisplaySink::start(const char *sourceHost, int32_t sourcePort) {
     sp<AMessage> msg = new AMessage(kWhatStart, id());
@@ -318,6 +336,37 @@ void WifiDisplaySink::onMessageReceived(const sp<AMessage> &msg) {
             looper()->stop();
             break;
         }
+
+#ifdef OMAP_ENHANCEMENT
+        case kWhatAction:
+        {
+            int32_t action;
+            CHECK(msg->findInt32("action", &action));
+            switch (action) {
+                case kActionPlay:
+                {
+                    sendPlay(mSessionID, mSetupURI.c_str());
+                    break;
+                }
+
+                case kActionPause:
+                {
+                    sendPause(mSessionID, mSetupURI.c_str());
+                    break;
+                }
+
+                case kActionTeardown:
+                {
+                    sendTeardown(mSessionID, mSetupURI.c_str());
+                    break;
+                }
+
+                default:
+                    TRESPASS();
+            }
+            break;
+        }
+#endif
 
         default:
             TRESPASS();

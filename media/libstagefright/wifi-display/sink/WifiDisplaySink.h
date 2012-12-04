@@ -46,6 +46,9 @@ struct WifiDisplaySink : public AHandler {
     status_t start(const char *sourceHost, int32_t sourcePort);
     status_t start(const char *uri);
     status_t postStartMessage(const sp<AMessage> &msg);
+    void play();
+    void pause();
+    void teardown();
 #else
     void start(const char *sourceHost, int32_t sourcePort);
     void start(const char *uri);
@@ -73,7 +76,18 @@ private:
         kWhatStart,
         kWhatRTSPNotify,
         kWhatStop,
+#ifdef OMAP_ENHANCEMENT
+        kWhatAction,
+#endif
     };
+
+#ifdef OMAP_ENHANCEMENT
+    enum Action {
+        kActionPlay,
+        kActionPause,
+        kActionTeardown,
+    };
+#endif
 
     struct ResponseID {
         int32_t mSessionID;
