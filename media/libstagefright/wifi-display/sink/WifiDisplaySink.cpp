@@ -42,6 +42,37 @@ WifiDisplaySink::WifiDisplaySink(
 WifiDisplaySink::~WifiDisplaySink() {
 }
 
+#ifdef OMAP_ENHANCEMENT
+status_t WifiDisplaySink::start(const char *sourceHost, int32_t sourcePort) {
+    sp<AMessage> msg = new AMessage(kWhatStart, id());
+    msg->setString("sourceHost", sourceHost);
+    msg->setInt32("sourcePort", sourcePort);
+
+    return postStartMessage(msg);
+}
+
+status_t WifiDisplaySink::start(const char *uri) {
+    sp<AMessage> msg = new AMessage(kWhatStart, id());
+    msg->setString("setupURI", uri);
+
+    return postStartMessage(msg);
+}
+
+status_t WifiDisplaySink::postStartMessage(const sp<AMessage> &msg) {
+    sp<AMessage> response;
+    status_t err = msg->postAndAwaitResponse(&response);
+
+    if (err != OK) {
+        return err;
+    }
+
+    if (!response->findInt32("err", &err)) {
+        err = OK;
+    }
+
+    return err;
+}
+#else
 void WifiDisplaySink::start(const char *sourceHost, int32_t sourcePort) {
     sp<AMessage> msg = new AMessage(kWhatStart, id());
     msg->setString("sourceHost", sourceHost);
@@ -54,6 +85,7 @@ void WifiDisplaySink::start(const char *uri) {
     msg->setString("setupURI", uri);
     msg->post();
 }
+#endif
 
 // static
 bool WifiDisplaySink::ParseURL(
@@ -123,6 +155,44 @@ void WifiDisplaySink::onMessageReceived(const sp<AMessage> &msg) {
     switch (msg->what()) {
         case kWhatStart:
         {
+#ifdef OMAP_ENHANCEMENT
+            uint32_t replyID;
+            CHECK(msg->senderAwaitsResponse(&replyID));
+
+            status_t err = OK;
+
+            int32_t sourcePort;
+
+            if (msg->findString("setupURI", &mSetupURI)) {
+                AString path, user, pass;
+                if (!ParseURL(mSetupURI.c_str(), &mRTSPHost, &sourcePort,
+                        &path, &user, &pass) || user.empty() || pass.empty()) {
+                    err = -EINVAL;
+                }
+            } else {
+                if (!msg->findString("sourceHost", &mRTSPHost) ||
+                        !msg->findInt32("sourcePort", &sourcePort)) {
+                    err = -EINVAL;
+                }
+            }
+
+            if (err == OK) {
+                sp<AMessage> notify = new AMessage(kWhatRTSPNotify, id());
+
+                err = mNetSession->createRTSPClient(mRTSPHost.c_str(),
+                        sourcePort, notify, &mSessionID);
+            }
+
+            if (err == OK) {
+                mState = CONNECTING;
+            }
+
+            sp<AMessage> response = new AMessage;
+            response->setInt32("err", err);
+            response->postReply(replyID);
+            break;
+#else
+
             int32_t sourcePort;
 
             if (msg->findString("setupURI", &mSetupURI)) {
@@ -144,6 +214,7 @@ void WifiDisplaySink::onMessageReceived(const sp<AMessage> &msg) {
 
             mState = CONNECTING;
             break;
+#endif
         }
 
         case kWhatRTSPNotify:

@@ -36,8 +36,14 @@ struct WifiDisplaySink : public AHandler {
             const sp<ANetworkSession> &netSession,
             const sp<ISurfaceTexture> &surfaceTex = NULL);
 
+#ifdef OMAP_ENHANCEMENT
+    status_t start(const char *sourceHost, int32_t sourcePort);
+    status_t start(const char *uri);
+    status_t postStartMessage(const sp<AMessage> &msg);
+#else
     void start(const char *sourceHost, int32_t sourcePort);
     void start(const char *uri);
+#endif
 
 protected:
     virtual ~WifiDisplaySink();
