@@ -119,6 +119,12 @@ private:
     status_t sendSetup(int32_t sessionID, const char *uri);
     status_t sendPlay(int32_t sessionID, const char *uri);
 
+#ifdef OMAP_ENHANCEMENT
+    status_t sendPause(int32_t sessionID, const char *uri);
+    status_t sendTeardown(int32_t sessionID, const char *uri);
+    status_t extractPresentationURL(const char *str);
+#endif
+
     status_t onReceiveM2Response(
             int32_t sessionID, const sp<ParsedMessage> &msg);
 
@@ -132,6 +138,14 @@ private:
 
     status_t onReceivePlayResponse(
             int32_t sessionID, const sp<ParsedMessage> &msg);
+
+#ifdef OMAP_ENHANCEMENT
+    status_t onReceivePauseResponse(
+            int32_t sessionID, const sp<ParsedMessage> &msg);
+
+    status_t onReceiveTeardownResponse(
+            int32_t sessionID, const sp<ParsedMessage> &msg);
+#endif
 
     void registerResponseHandler(
             int32_t sessionID, int32_t cseq, HandleRTSPResponseFunc func);
@@ -154,7 +168,14 @@ private:
             const sp<ParsedMessage> &data);
 
 #ifdef OMAP_ENHANCEMENT
+    const char *getSetupURI();
     void sendOK(int32_t sessionID, int32_t cseq);
+
+    status_t sendAction(
+            int32_t sessionID,
+            const char *action,
+            const char *uri,
+            HandleRTSPResponseFunc func);
 #endif
 
     void sendErrorResponse(

@@ -488,6 +488,41 @@ status_t WifiDisplaySink::onReceivePlayResponse(
     return OK;
 }
 
+#ifdef OMAP_ENHANCEMENT
+status_t WifiDisplaySink::onReceivePauseResponse(
+        int32_t sessionID, const sp<ParsedMessage> &msg) {
+    int32_t statusCode;
+    if (!msg->getStatusCode(&statusCode)) {
+        return ERROR_MALFORMED;
+    }
+
+    if (statusCode != 200) {
+        return ERROR_UNSUPPORTED;
+    }
+
+    mState = PAUSED;
+
+    return OK;
+}
+
+status_t WifiDisplaySink::onReceiveTeardownResponse(
+        int32_t sessionID, const sp<ParsedMessage> &msg) {
+    // We just ignore response on TEARDOWN message
+    // and close all connections
+    if (mRTPSink != NULL) {
+        looper()->unregisterHandler(mRTPSink->id());
+        mRTPSink.clear();
+    }
+
+    mNetSession->stop();
+
+    sp<AMessage> req = new AMessage(kWhatStop, id());
+    req->post();
+
+    return OK;
+}
+#endif
+
 void WifiDisplaySink::onReceiveClientData(const sp<AMessage> &msg) {
     int32_t sessionID;
     CHECK(msg->findInt32("sessionID", &sessionID));
@@ -713,6 +748,152 @@ status_t WifiDisplaySink::sendSetup(int32_t sessionID, const char *uri) {
     return OK;
 }
 
+#ifdef OMAP_ENHANCEMENT
+status_t WifiDisplaySink::sendPlay(int32_t sessionID, const char *uri) {
+    if (mState != PAUSED) {
+        ALOGD("PLAY can't be send due to state is not PAUSED");
+        return OK;
+    }
+
+    return sendAction(sessionID, "PLAY", uri,
+            &WifiDisplaySink::onReceivePlayResponse);
+}
+
+status_t WifiDisplaySink::sendPause(int32_t sessionID, const char *uri) {
+    if (mState != PLAYING) {
+        ALOGD("PAUSE can't be send due to state is not PLAYING");
+        return OK;
+    }
+
+    return sendAction(sessionID, "PAUSE", uri,
+            &WifiDisplaySink::onReceivePauseResponse);
+}
+
+status_t WifiDisplaySink::sendTeardown(int32_t sessionID, const char *uri) {
+    if (mState < PAUSED) {
+        ALOGD("TEARDOWN can't be send due to state is not PLAYING or PAUSED");
+        return OK;
+    }
+
+    return sendAction(sessionID, "TEARDOWN", uri,
+            &WifiDisplaySink::onReceiveTeardownResponse);
+}
+
+status_t WifiDisplaySink::extractPresentationURL(const char *str) {
+    char *splitter = strchr(str, ' ');
+
+    if (splitter == NULL) {
+        return ERROR_MALFORMED;
+    }
+
+    if (strcmp(splitter + 1, "none")) {
+        return ERROR_MALFORMED;
+    }
+
+    AString uri(str, splitter - str);
+    mSetupURI = uri;
+
+    return OK;
+}
+
+void WifiDisplaySink::onSetParameterRequest(
+        int32_t sessionID,
+        int32_t cseq,
+        const sp<ParsedMessage> &data) {
+
+    if (mState < GET_PARAMETER) {
+        sendErrorResponse(sessionID, "405 Method Not Allowed", cseq);
+        return;
+    }
+
+    const char *content = data->getContent();
+    sp<Parameters> params = Parameters::Parse(content, strlen(content));
+    if (params == NULL) {
+        sendErrorResponse(sessionID, "400 Bad Request", cseq);
+        return;
+    }
+
+    AString parameter;
+
+    params->findParameter("wfd_trigger_method", &parameter);
+    if (parameter.size()) {
+        if (parameter == "SETUP") {
+            sendOK(sessionID, cseq);
+            CHECK_EQ(sendSetup(sessionID, getSetupURI()), (status_t)OK);
+
+        } else if (parameter == "PLAY") {
+            sendOK(sessionID, cseq);
+            CHECK_EQ(sendPlay(sessionID, getSetupURI()), (status_t)OK);
+
+        } else if (parameter == "PAUSE") {
+            sendOK(sessionID, cseq);
+            CHECK_EQ(sendPause(sessionID, getSetupURI()), (status_t)OK);
+
+        } else if (parameter == "TEARDOWN") {
+            sendOK(sessionID, cseq);
+            CHECK_EQ(sendTeardown(sessionID, getSetupURI()), (status_t)OK);
+
+        } else {
+            AString response = "RTSP/1.0 303 See Other\r\n";
+            AppendCommonResponse(&response, cseq);
+            response.append("\r\n");
+            response.append("wfd_trigger_method: 451\r\n");
+
+            CHECK_EQ(mNetSession->sendRequest(sessionID, response.c_str()), (status_t)OK);
+        }
+        return;
+    }
+
+    AString body;
+
+    params->findParameter("wfd_video_formats", &parameter);
+    if (!parameter.empty()) {
+        if (parameter == "none") {
+            mVideoMode = NULL;
+        } else {
+            mVideoMode = mVideoParams->applyVideoMode(parameter.c_str());
+            if (mVideoMode == NULL) {
+                body.append("wfd_video_formats: 415\r\n");
+            }
+        }
+    }
+
+    params->findParameter("wfd_audio_codecs", &parameter);
+    if (!parameter.empty()) {
+        if (parameter == "none") {
+            mAudioMode = NULL;
+        } else {
+            mAudioMode = mAudioParams->applyAudioMode(parameter.c_str());
+            if (mAudioMode == NULL) {
+                body.append("wfd_audio_codecs: 415\r\n");
+            }
+        }
+    }
+
+    params->findParameter("wfd_presentation_url", &parameter);
+    if (!parameter.empty()) {
+        status_t err = extractPresentationURL(parameter.c_str());
+        if (err != OK) {
+            body.append("wfd_presentation_url: 400\r\n");
+        }
+    }
+
+    if (!body.empty()) {
+        AString response = "RTSP/1.0 303 See Other\r\n";
+        AppendCommonResponse(&response, cseq);
+        response.append("Content-Type: text/parameters\r\n");
+        response.append(StringPrintf("Content-Length: %d\r\n", body.size()));
+        response.append("\r\n");
+        response.append(body);
+
+        status_t err = mNetSession->sendRequest(sessionID, response.c_str());
+        CHECK_EQ(err, (status_t)OK);
+    } else {
+        sendOK(sessionID, cseq);
+        ALOGD("SETUP %s %s", mVideoMode->toString().c_str(), mAudioMode->toString().c_str());
+    }
+}
+#else
 status_t WifiDisplaySink::sendPlay(int32_t sessionID, const char *uri) {
     AString request = StringPrintf("PLAY %s RTSP/1.0\r\n", uri);
 
@@ -758,8 +939,13 @@ void WifiDisplaySink::onSetParameterRequest(
     status_t err = mNetSession->sendRequest(sessionID, response.c_str());
     CHECK_EQ(err, (status_t)OK);
 }
+#endif
 
 #ifdef OMAP_ENHANCEMENT
+const char *WifiDisplaySink::getSetupURI() {
+    return !mSetupURI.empty() ? mSetupURI.c_str() : "rtsp://x.x.x.x:x/wfd1.0/streamid=0";
+}
+
 void WifiDisplaySink::sendOK(int32_t sessionID, int32_t cseq) {
     AString response = "RTSP/1.0 200 OK\r\n";
     AppendCommonResponse(&response, cseq);
@@ -767,6 +953,29 @@ void WifiDisplaySink::sendOK(int32_t sessionID, int32_t cseq) {
 
     status_t err = mNetSession->sendRequest(sessionID, response.c_str());
     CHECK_EQ(err, (status_t)OK);
+}
+
+status_t WifiDisplaySink::sendAction(int32_t sessionID, const char *action,
+        const char *uri, HandleRTSPResponseFunc func) {
+    AString request = StringPrintf("%s %s RTSP/1.0\r\n", action, uri);
+
+    AppendCommonResponse(&request, mNextCSeq);
+
+    request.append(StringPrintf("Session: %s\r\n", mPlaybackSessionID.c_str()));
+    request.append("\r\n");
+
+    status_t err =
+        mNetSession->sendRequest(sessionID, request.c_str(), request.size());
+
+    if (err != OK) {
+        return err;
+    }
+
+    registerResponseHandler(sessionID, mNextCSeq, func);
+
+    ++mNextCSeq;
+
+    return OK;
 }
 #endif
 
