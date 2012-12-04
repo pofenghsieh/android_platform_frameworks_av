@@ -27,6 +27,12 @@ namespace android {
 
 struct ParsedMessage;
 struct RTPSink;
+#ifdef OMAP_ENHANCEMENT
+struct VideoParameters;
+struct AudioParameters;
+struct VideoMode;
+struct AudioMode;
+#endif
 
 // Represents the RTSP client acting as a wifi display sink.
 // Connects to a wifi display source and renders the incoming
@@ -54,6 +60,11 @@ private:
         UNDEFINED,
         CONNECTING,
         CONNECTED,
+#ifdef OMAP_ENHANCEMENT
+        OPTIONS,
+        GET_PARAMETER,
+        SET_PARAMETER,
+#endif
         PAUSED,
         PLAYING,
     };
@@ -95,6 +106,14 @@ private:
     AString mPlaybackSessionID;
     int32_t mPlaybackSessionTimeoutSecs;
 
+#ifdef OMAP_ENHANCEMENT
+    sp<VideoParameters> mVideoParams;
+    sp<AudioParameters> mAudioParams;
+
+    sp<VideoMode> mVideoMode;
+    sp<AudioMode> mAudioMode;
+#endif
+
     status_t sendM2(int32_t sessionID);
     status_t sendDescribe(int32_t sessionID, const char *uri);
     status_t sendSetup(int32_t sessionID, const char *uri);
@@ -133,6 +152,10 @@ private:
             int32_t sessionID,
             int32_t cseq,
             const sp<ParsedMessage> &data);
+
+#ifdef OMAP_ENHANCEMENT
+    void sendOK(int32_t sessionID, int32_t cseq);
+#endif
 
     void sendErrorResponse(
             int32_t sessionID,

@@ -22,12 +22,24 @@
 #include "ParsedMessage.h"
 #include "RTPSink.h"
 
+#ifdef OMAP_ENHANCEMENT
+#include "Parameters.h"
+#include "VideoParameters.h"
+#include "AudioParameters.h"
+#endif
+
 #include <media/stagefright/foundation/ABuffer.h>
 #include <media/stagefright/foundation/ADebug.h>
 #include <media/stagefright/foundation/AMessage.h>
 #include <media/stagefright/MediaErrors.h>
 
 namespace android {
+
+#ifdef OMAP_ENHANCEMENT
+const char kDefaultVideoCapabilities[] =
+        "00 00 01 01 0001ffff 3fffffff 00000fff 00 0000 0000 00 none none";
+const char kDefaultAudioCapabilities[] = "LPCM 00000003 00, AAC 00000001 00";
+#endif
 
 WifiDisplaySink::WifiDisplaySink(
         const sp<ANetworkSession> &netSession,
@@ -172,6 +184,15 @@ void WifiDisplaySink::onMessageReceived(const sp<AMessage> &msg) {
             } else {
                 if (!msg->findString("sourceHost", &mRTSPHost) ||
                         !msg->findInt32("sourcePort", &sourcePort)) {
+                    err = -EINVAL;
+                }
+            }
+
+            if (err == OK) {
+                mVideoParams = VideoParameters::parse(kDefaultVideoCapabilities);
+                mAudioParams = AudioParameters::parse(kDefaultAudioCapabilities);
+                if (mVideoParams == NULL || mAudioParams == NULL) {
+                    ALOGE("The own default Video/Audio capabilities have errors");
                     err = -EINVAL;
                 }
             }
@@ -344,6 +365,10 @@ status_t WifiDisplaySink::onReceiveM2Response(
     if (statusCode != 200) {
         return ERROR_UNSUPPORTED;
     }
+
+#ifdef OMAP_ENHANCEMENT
+    mState = OPTIONS;
+#endif
 
     return OK;
 }
@@ -541,6 +566,62 @@ void WifiDisplaySink::onOptionsRequest(
     CHECK_EQ(err, (status_t)OK);
 }
 
+#ifdef OMAP_ENHANCEMENT
+void WifiDisplaySink::onGetParameterRequest(
+        int32_t sessionID,
+        int32_t cseq,
+        const sp<ParsedMessage> &data) {
+    // GET_PARAMETER request should have not been received before
+    // OPTIONS messages exchange
+    if (mState < OPTIONS) {
+        sendErrorResponse(sessionID, "405 Method Not Allowed", cseq);
+        return;
+    }
+
+    const char *content = data->getContent();
+    if (!strlen(content)) {
+        // If message content length equal zero, this message is
+        // keep alive message M16
+        sendOK(sessionID, cseq);
+        return;
+    }
+
+    // This is GET_PARAMETER M3 message request
+    AString body;
+    if (strstr(content, "wfd_video_formats\r\n") != NULL) {
+        body.append("wfd_video_formats: ");
+        body.append(mVideoParams->generateVideoFormats());
+        body.append("\r\n");
+    }
+
+    if (strstr(content, "wfd_audio_codecs\r\n") != NULL) {
+        body.append("wfd_audio_codecs: ");
+        body.append(mAudioParams->generateAudioFormats());
+        body.append("\r\n");
+    }
+
+    if (strstr(content, "wfd_client_rtp_ports\r\n") != NULL) {
+        // Due to RTPSink object is not cterated yet we use hardcoded
+        // dummy RTP port number. SETUP message will have actual RTP
+        // port number.
+        body.append("wfd_client_rtp_ports: RTP/AVP/UDP;unicast 15550 0 mode=play\r\n");
+    }
+
+    AString response = "RTSP/1.0 200 OK\r\n";
+    AppendCommonResponse(&response, cseq);
+    response.append("Content-Type: text/parameters\r\n");
+    response.append(StringPrintf("Content-Length: %d\r\n", body.size()));
+    response.append("\r\n");
+    response.append(body);
+
+    status_t err = mNetSession->sendRequest(sessionID, response.c_str());
+    CHECK_EQ(err, (status_t)OK);
+
+    if (mState == OPTIONS) {
+        mState = GET_PARAMETER;
+    }
+}
+#else
 void WifiDisplaySink::onGetParameterRequest(
         int32_t sessionID,
         int32_t cseq,
@@ -560,6 +641,7 @@ void WifiDisplaySink::onGetParameterRequest(
     status_t err = mNetSession->sendRequest(sessionID, response.c_str());
     CHECK_EQ(err, (status_t)OK);
 }
+#endif
 
 status_t WifiDisplaySink::sendDescribe(int32_t sessionID, const char *uri) {
     uri = "rtsp://xwgntvx.is.livestream-api.com/livestreamiphone/wgntv";
@@ -676,6 +758,17 @@ void WifiDisplaySink::onSetParameterRequest(
     status_t err = mNetSession->sendRequest(sessionID, response.c_str());
     CHECK_EQ(err, (status_t)OK);
 }
+
+#ifdef OMAP_ENHANCEMENT
+void WifiDisplaySink::sendOK(int32_t sessionID, int32_t cseq) {
+    AString response = "RTSP/1.0 200 OK\r\n";
+    AppendCommonResponse(&response, cseq);
+    response.append("\r\n");
+
+    status_t err = mNetSession->sendRequest(sessionID, response.c_str());
+    CHECK_EQ(err, (status_t)OK);
+}
+#endif
 
 void WifiDisplaySink::sendErrorResponse(
         int32_t sessionID,
