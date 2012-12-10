@@ -158,6 +158,9 @@ status_t Converter::initEncoder() {
         mOutputFormat->setInt32("frame-rate", 30);
         mOutputFormat->setInt32("i-frame-interval", 1);  // Iframes every 1 secs
         mOutputFormat->setInt32("prepend-sps-pps-to-idr-frames", 1);
+#ifdef OMAP_ENHANCEMENT
+        mOutputFormat->setInt32("wfd-enabled", 1);  //This flag is used to enable WFD specifiSettings
+#endif
     }
 
     ALOGV("output format is '%s'", mOutputFormat->debugString(0).c_str());
