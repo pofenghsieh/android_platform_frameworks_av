@@ -750,6 +750,7 @@ status_t WifiDisplaySource::onReceiveM3Response(
     } else if (value == "none") {
         ALOGI("Sink does not support content protection.");
     } else {
+#ifndef OMAP_ENHANCEMENT
         mUsingHDCP = true;
 
         bool isHDCP2_0 = false;
@@ -776,6 +777,7 @@ status_t WifiDisplaySource::onReceiveM3Response(
             ALOGE("Unable to instantiate HDCP component.");
             return err;
         }
+#endif
     }
 
     return sendM4(sessionID);
