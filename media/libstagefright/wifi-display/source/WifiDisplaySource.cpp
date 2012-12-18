@@ -24,6 +24,11 @@
 #include "ParsedMessage.h"
 #include "Sender.h"
 
+#ifdef OMAP_ENHANCEMENT
+#include "VideoParameters.h"
+#include "AudioParameters.h"
+#endif
+
 #include <binder/IServiceManager.h>
 #include <gui/ISurfaceTexture.h>
 #include <media/IHDCP.h>
@@ -40,6 +45,13 @@
 #include <ctype.h>
 
 namespace android {
+
+#ifdef OMAP_ENHANCEMENT
+const char kDefaultVideoCapabilities[] =
+        "30 00 02 02 00000061 00000000 00000000 00 0000 0000 00 none none, "
+        "01 02 00000061 00000000 00000000 00 0000 0000 00 none none";
+const char kDefaultAudioCapabilities[] = "LPCM 00000002 00, AAC 00000001 00";
+#endif
 
 WifiDisplaySource::WifiDisplaySource(
         const sp<ANetworkSession> &netSession,
@@ -114,6 +126,14 @@ void WifiDisplaySource::onMessageReceived(const sp<AMessage> &msg) {
 
             status_t err = OK;
 
+#ifdef OMAP_ENHANCEMENT
+            mVideoParams = VideoParameters::parse(kDefaultVideoCapabilities);
+            mAudioParams = AudioParameters::parse(kDefaultAudioCapabilities);
+            if (mVideoParams == NULL || mAudioParams == NULL) {
+                ALOGE("The source default Video/Audio capabilities have errors");
+                err = -EINVAL;
+            }
+#endif
             ssize_t colonPos = iface.find(":");
 
             unsigned long port;
@@ -528,6 +548,16 @@ status_t WifiDisplaySource::sendM4(int32_t sessionID) {
         transportString = "TCP";
     }
 
+#ifdef OMAP_ENHANCEMENT
+    AString body = StringPrintf(
+        "wfd_video_formats: %s\r\n"
+        "wfd_audio_codecs: %s\r\n"
+        "wfd_presentation_URL: rtsp://%s/wfd1.0/streamid=0 none\r\n"
+        "wfd_client_rtp_ports: RTP/AVP/%s;unicast %d 0 mode=play\r\n",
+        mVideoParams->generateVideoMode(mVideoMode).c_str(),
+        mAudioParams->generateAudioMode(mAudioMode).c_str(),
+        mClientInfo.mLocalIP.c_str(), transportString.c_str(), mChosenRTPPort);
+#else
     // For 720p60:
     //   use "30 00 02 02 00000040 00000000 00000000 00 0000 0000 00 none none\r\n"
     // For 720p30:
@@ -544,6 +574,7 @@ status_t WifiDisplaySource::sendM4(int32_t sessionID) {
             ? "LPCM 00000002 00" // 2 ch PCM 48kHz
             : "AAC 00000001 00"),  // 2 ch AAC 48kHz
         mClientInfo.mLocalIP.c_str(), transportString.c_str(), mChosenRTPPort);
+#endif
 
     AString request = "SET_PARAMETER rtsp://localhost/wfd1.0 RTSP/1.0\r\n";
     AppendCommonResponse(&request, mNextCSeq);
@@ -708,6 +739,91 @@ status_t WifiDisplaySource::onReceiveM3Response(
 
     mChosenRTPPort = port0;
 
+#ifdef OMAP_ENHANCEMENT
+    if (!params->findParameter("wfd_video_formats", &value)) {
+        ALOGE("Sink doesn't report its choice of wfd_video_formats.");
+        return ERROR_MALFORMED;
+    }
+
+    if (value == "none") {
+        mVideoMode = NULL;
+        ALOGD("Sink doesn't support video at all.");
+    } else {
+        sp<VideoParameters> sinkVideoParams = VideoParameters::parse(value.c_str());
+        if (sinkVideoParams == NULL) {
+            ALOGE("Sink reported incorrect wfd_video_formats.");
+            return ERROR_MALFORMED;
+        }
+
+        sp<VideoMode> desiredVideoMode = new VideoMode();
+
+        char val[PROPERTY_VALUE_MAX];
+        property_get("media.wfd.video-mode", val, NULL);
+
+        if (sscanf(val, "%*s %dx%d %d", &desiredVideoMode->width, &desiredVideoMode->height,
+                &desiredVideoMode->frameRate) == 3) {
+            desiredVideoMode->h264HighProfile = !strncasecmp(val, "CHP ", 4) ? true : false;
+            ALOGD("Source's desired video mode is %s", desiredVideoMode->toString().c_str());
+        } else {
+            desiredVideoMode = NULL;
+        }
+
+        mVideoMode = mVideoParams->getBestVideoMode(sinkVideoParams, desiredVideoMode);
+        if (mVideoMode == NULL) {
+            ALOGE("Source don't have acceptable video mode to sink.");
+            return ERROR_UNSUPPORTED;
+        }
+
+        ALOGD("Source choice of video mode is %s", mVideoMode->toString().c_str());
+    }
+
+    if (!params->findParameter("wfd_audio_codecs", &value)) {
+        ALOGE("Sink doesn't report its choice of wfd_audio_codecs.");
+        return ERROR_MALFORMED;
+    }
+
+    if (value == "none") {
+        mAudioMode = NULL;
+        ALOGD("Sink doesn't support audio at all.");
+    } else {
+        sp<AudioParameters> sinkAudioParams  = AudioParameters::parse(value.c_str());
+        if (sinkAudioParams == NULL) {
+            ALOGE("Sink reported incorrect wfd_audio_codecs.");
+            return ERROR_MALFORMED;
+        }
+
+        sp<AudioMode> desiredAudioMode = NULL;
+
+        char val[PROPERTY_VALUE_MAX];
+        property_get("media.wfd.use-pcm-audio", val, NULL);
+
+        if (!strcasecmp("true", val) || !strcmp("1", val)) {
+            desiredAudioMode = new AudioMode();
+            desiredAudioMode->format = AudioMode::kLpcmAudioFormat;
+            desiredAudioMode->sampleRate = 48000;
+            desiredAudioMode->sampleSize = 16;
+            desiredAudioMode->channelNum = 2;
+            ALOGD("Source's desired audio mode is %s", desiredAudioMode->toString().c_str());
+        }
+
+        mAudioMode = mAudioParams->getBestAudioMode(sinkAudioParams, desiredAudioMode);
+        if (mAudioMode == NULL) {
+            ALOGE("Source don't have acceptable audio mode to sink.");
+            return ERROR_UNSUPPORTED;
+        }
+
+        ALOGD("Source choice of audio mode is %s", mAudioMode->toString().c_str());
+    }
+
+    if (mVideoMode == NULL && mAudioMode == NULL) {
+        ALOGE("Sink and source can't work together because"
+                " there are no matching video or audio modes.");
+        return ERROR_UNSUPPORTED;
+    }
+
+    mUsingPCMAudio = mAudioMode->format == AudioMode::kLpcmAudioFormat;
+
+#else
     if (!params->findParameter("wfd_audio_codecs", &value)) {
         ALOGE("Sink doesn't report its choice of wfd_audio_codecs.");
         return ERROR_MALFORMED;
@@ -743,6 +859,7 @@ status_t WifiDisplaySource::onReceiveM3Response(
         ALOGI("Sink doesn't support an audio format we do.");
         return ERROR_UNSUPPORTED;
     }
+#endif
 
     mUsingHDCP = false;
     if (!params->findParameter("wfd_content_protection", &value)) {
