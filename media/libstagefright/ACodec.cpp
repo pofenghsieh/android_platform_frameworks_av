@@ -41,6 +41,11 @@
 
 #include "include/avc_utils.h"
 
+#ifdef ENHANCED_DOMX
+#include <OMX_TI_Video.h>
+#include <OMX_TI_Index.h>
+#endif
+
 namespace android {
 
 template<class T>
@@ -897,18 +902,46 @@ status_t ACodec::configureCodec(
             && msg->findInt32("prepend-sps-pps-to-idr-frames", &prependSPSPPS)
             && prependSPSPPS != 0) {
         OMX_INDEXTYPE index;
+#ifndef ENHANCED_DOMX
         err = mOMX->getExtensionIndex(
                 mNode,
                 "OMX.google.android.index.prependSPSPPSToIDRFrames",
                 &index);
+#else
+        err = mOMX->getExtensionIndex(
+                mNode,
+                "OMX_TI_IndexParamVideoNALUsettings",
+                &index);
+#endif
 
         if (err == OK) {
+#ifndef ENHANCED_DOMX
             PrependSPSPPSToIDRFramesParams params;
             InitOMXParams(&params);
             params.bEnable = OMX_TRUE;
 
             err = mOMX->setParameter(
                     mNode, index, &params, sizeof(params));
+#else
+            ALOGV("Enable SPS/PPS with IDR frame");
+            OMX_VIDEO_PARAM_AVCNALUCONTROLTYPE nalControl;
+            InitOMXParams(&nalControl);
+            nalControl.nPortIndex = kPortIndexOutput;
+
+            status_t err = mOMX->getParameter(
+                    mNode, index, &nalControl, sizeof(nalControl));
+            if (err != OK) {
+                return err;
+            }
+
+            nalControl.nIDR = 0x1A0; //enable SPS,PPS with IDR
+
+            err = mOMX->setParameter(
+                    mNode, index, &nalControl, sizeof(nalControl));
+            if (err != OK) {
+                return err;
+            }
+#endif
         }
 
         if (err != OK) {
