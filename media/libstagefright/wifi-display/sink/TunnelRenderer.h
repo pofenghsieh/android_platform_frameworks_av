@@ -71,6 +71,12 @@ private:
     int64_t mFirstFailedAttemptUs;
     bool mRequestedRetransmission;
 
+#ifdef OMAP_ENHANCEMENT
+    bool mRetransmissionEnabled;
+    uint32_t mRetransmissionTries;
+    bool mRetransmissionSuccess;
+#endif
+
     void initPlayer();
     void destroyPlayer();
 

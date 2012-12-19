@@ -32,6 +32,10 @@
 #include <media/stagefright/foundation/AMessage.h>
 #include <ui/DisplayInfo.h>
 
+#ifdef OMAP_ENHANCEMENT
+static const int32_t kMaxRetrasmissionTries = 2;
+#endif
+
 namespace android {
 
 struct TunnelRenderer::PlayerClient : public BnMediaPlayerClient {
@@ -165,7 +169,14 @@ TunnelRenderer::TunnelRenderer(
       mTotalBytesQueued(0ll),
       mLastDequeuedExtSeqNo(-1),
       mFirstFailedAttemptUs(-1ll),
+#ifdef OMAP_ENHANCEMENT
+      mRequestedRetransmission(false),
+      mRetransmissionEnabled(kMaxRetrasmissionTries ? true : false),
+      mRetransmissionTries(0),
+      mRetransmissionSuccess(false) {
+#else
       mRequestedRetransmission(false) {
+#endif
 }
 
 TunnelRenderer::~TunnelRenderer() {
@@ -230,6 +241,11 @@ sp<ABuffer> TunnelRenderer::dequeueBuffer() {
         extSeqNo = -1;
 
         mPackets.erase(mPackets.begin());
+
+#ifdef OMAP_ENHANCEMENT
+        mRetransmissionEnabled = true;
+        mRetransmissionSuccess = true;
+#endif
     }
 
     if (mPackets.empty()) {
@@ -248,6 +264,10 @@ sp<ABuffer> TunnelRenderer::dequeueBuffer() {
         if (mRequestedRetransmission) {
             ALOGI("Recovered after requesting retransmission of %d",
                   extSeqNo);
+#ifdef OMAP_ENHANCEMENT
+            mRetransmissionEnabled = true;
+            mRetransmissionSuccess = true;
+#endif
         }
 
         mLastDequeuedExtSeqNo = extSeqNo;
@@ -268,7 +288,12 @@ sp<ABuffer> TunnelRenderer::dequeueBuffer() {
         return NULL;
     }
 
+#ifdef OMAP_ENHANCEMENT
+    if (mRetransmissionEnabled
+            && (mFirstFailedAttemptUs + 50000ll > ALooper::GetNowUs())) {
+#else
     if (mFirstFailedAttemptUs + 50000ll > ALooper::GetNowUs()) {
+#endif
         // We're willing to wait a little while to get the right packet.
 
         if (!mRequestedRetransmission) {
@@ -298,6 +323,16 @@ sp<ABuffer> TunnelRenderer::dequeueBuffer() {
     mTotalBytesQueued -= buffer->size();
 
     mPackets.erase(mPackets.begin());
+
+#ifdef OMAP_ENHANCEMENT
+    if (!mRetransmissionSuccess) {
+        if (mRetransmissionTries >= kMaxRetrasmissionTries) {
+            mRetransmissionEnabled = false;
+        } else {
+            mRetransmissionTries++;
+        }
+    }
+#endif
 
     return buffer;
 }
