@@ -37,6 +37,8 @@
 #include <OMX_Component.h>
 #ifdef ENHANCED_DOMX
 #include <OMX_TI_IVCommon.h>
+#include <OMX_TI_Index.h>
+#include <OMX_TI_Video.h>
 #endif
 
 #include "include/avc_utils.h"
@@ -1938,7 +1940,86 @@ status_t ACodec::setupAVCEncoderParameters(const sp<AMessage> &msg) {
         return err;
     }
 
+#ifndef ENHANCED_DOMX
     return configureBitrate(bitrate, bitrateMode);
+#else
+    err = configureBitrate(bitrate, bitrateMode);
+    if (err != OK) {
+        return err;
+    }
+
+    int32_t wfdEnabled = 0;
+    if (msg->findInt32("wfd-enabled", &wfdEnabled)) {
+        ALOGV("WFD Enabled:%d", wfdEnabled);
+    }
+
+    if (wfdEnabled) {
+        OMX_INDEXTYPE index;
+
+        // minPicSizeratio and maxPicSizeratio values are used to control the size of encoded
+        // frames. In order to improve the quality of I-frames the minPicSizeratio and maxPicSizeratio
+        // values are set to 0, 20 for I-frames and 0 , 2 for P,B frames respectively.
+        // lowerBound - avgFramesize/(2^minPicSizeRatio)
+        // upperBound - avgFramesize * maxPicSizeRatio
+        err = mOMX->getExtensionIndex(
+                mNode,
+                (OMX_STRING)"OMX_TI_IndexConfigPicSizeControlInfo",
+                &index);
+
+        if (err != OK) {
+            ALOGE("OMX_TI_IndexConfigPicSizeControlInfo is not available");
+            return err;
+        }
+
+        ALOGV("Set min/max pic size");
+        OMX_TI_VIDEO_CONFIG_PICSIZECONTROLINFO picsizecontrol;
+        InitOMXParams(&picsizecontrol);
+        picsizecontrol.nPortIndex = kPortIndexOutput;
+
+        err = mOMX->getConfig(
+                mNode, index, &picsizecontrol, sizeof(picsizecontrol));
+        if (err != OK) {
+            return err;
+        }
+
+        picsizecontrol.minPicSizeRatioI = 0;
+        picsizecontrol.maxPicSizeRatioI = 20;
+        picsizecontrol.minPicSizeRatioP = 0;
+        picsizecontrol.maxPicSizeRatioP = 2;
+        picsizecontrol.minPicSizeRatioB = 0;
+        picsizecontrol.maxPicSizeRatioB = 2;
+
+        err = mOMX->setConfig(
+                mNode, index, &picsizecontrol, sizeof(picsizecontrol));
+        if (err != OK) {
+            return err;
+        }
+
+        // Setting buffer size equal to bit rate. This is required to improve the quality of an I-frame.
+        ALOGV("Setting AVCHRD Buffersize to: %u",bitrate);
+
+        OMX_TI_VIDEO_PARAM_AVCHRDBUFFERSETTING buffsize;
+        InitOMXParams(&buffsize);
+        buffsize.nPortIndex = kPortIndexOutput;
+        err = mOMX->getParameter(mNode,
+                (OMX_INDEXTYPE)OMX_TI_IndexParamAVCHRDBufferSizeSetting,
+                &buffsize, sizeof(buffsize));
+        if (err != OK) {
+            return err;
+        }
+
+        buffsize.nHRDBufferSize = bitrate;
+        buffsize.nInitialBufferLevel = bitrate;
+        err = mOMX->setParameter(mNode,
+                (OMX_INDEXTYPE)OMX_TI_IndexParamAVCHRDBufferSizeSetting,
+                &buffsize, sizeof(buffsize));
+        if (err != OK) {
+            return err;
+        }
+   }
+
+    return OK;
+#endif
 }
 
 status_t ACodec::verifySupportForProfileAndLevel(
