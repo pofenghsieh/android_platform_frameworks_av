@@ -18,6 +18,12 @@ LOCAL_SRC_FILES:= \
         source/TSPacketizer.cpp         \
         source/WifiDisplaySource.cpp    \
 
+ifeq ($(OMAP_ENHANCEMENT), true)
+LOCAL_SRC_FILES+= \
+        ElementaryParser.cpp            \
+
+endif
+
 LOCAL_C_INCLUDES:= \
         $(TOP)/frameworks/av/media/libstagefright \
         $(TOP)/frameworks/native/include/media/openmax \
