@@ -24,7 +24,11 @@
 namespace android {
 
 struct ABuffer;
+#ifdef OMAP_ENHANCEMENT
+struct ATSByteParser;
+#else
 struct ATSParser;
+#endif
 
 struct NuPlayer::StreamingSource : public NuPlayer::Source {
     StreamingSource(const sp<IStreamSource> &source);
@@ -44,7 +48,12 @@ private:
     sp<IStreamSource> mSource;
     status_t mFinalResult;
     sp<NuPlayerStreamListener> mStreamListener;
+#ifdef OMAP_ENHANCEMENT
+    sp<ATSByteParser> mTSParser;
+    sp<ABuffer> mBuffer;
+#else
     sp<ATSParser> mTSParser;
+#endif
 
     DISALLOW_EVIL_CONSTRUCTORS(StreamingSource);
 };

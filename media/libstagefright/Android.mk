@@ -106,7 +106,18 @@ LOCAL_STATIC_LIBRARIES := \
         libstagefright_matroska \
         libstagefright_timedtext \
         libvpx \
+
+ifeq ($(OMAP_ENHANCEMENT), true)
+LOCAL_WHOLE_STATIC_LIBRARIES := \
         libstagefright_mpeg2ts \
+
+else
+LOCAL_STATIC_LIBRARIES += \
+        libstagefright_mpeg2ts \
+
+endif
+
+LOCAL_STATIC_LIBRARIES += \
         libstagefright_httplive \
         libstagefright_id3 \
         libFLAC \

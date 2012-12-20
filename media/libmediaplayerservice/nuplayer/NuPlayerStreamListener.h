@@ -21,6 +21,9 @@
 #include "NuPlayer.h"
 
 #include <media/IStreamSource.h>
+#ifdef OMAP_ENHANCEMENT
+#include <media/stagefright/foundation/ABuffer.h>
+#endif
 
 namespace android {
 
@@ -38,6 +41,9 @@ struct NuPlayer::NuPlayerStreamListener : public BnStreamListener {
 
     void start();
     ssize_t read(void *data, size_t size, sp<AMessage> *extra);
+#ifdef OMAP_ENHANCEMENT
+    status_t dequeueAccessUnit(sp<ABuffer> buffer, sp<AMessage> *extra);
+#endif
 
 private:
     enum {

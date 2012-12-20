@@ -9,6 +9,12 @@ LOCAL_SRC_FILES:=                 \
         MPEG2PSExtractor.cpp      \
         MPEG2TSExtractor.cpp      \
 
+ifeq ($(OMAP_ENHANCEMENT), true)
+LOCAL_SRC_FILES +=                \
+        ATSByteParser.cpp         \
+
+endif
+
 LOCAL_C_INCLUDES:= \
 	$(TOP)/frameworks/av/media/libstagefright \
 	$(TOP)/frameworks/native/include/media/openmax
