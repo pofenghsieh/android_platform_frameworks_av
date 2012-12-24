@@ -184,8 +184,8 @@ sp<AudioMode> AudioParameters::applyAudioMode(const char * data) {
 
     // Check all supported profiles to find suitable one
     List< sp<AudioCodec> >::iterator it = mAudioCodecs.begin();
-    while (it != mAudioCodecs.end()) {
-        const sp<AudioCodec> &capCodec = *it++;
+    for (; it != mAudioCodecs.end(); it++) {
+        const sp<AudioCodec> &capCodec = *it;
         if (capCodec->format != newCodec->format) continue;
         if (!(capCodec->modes & newCodec->modes)) continue;
         break;
