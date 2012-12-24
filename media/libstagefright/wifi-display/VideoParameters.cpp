@@ -163,14 +163,13 @@ status_t VideoParameters::parseParams(const char *data) {
     // Native resolution/refresh rates bitmap
     // 00 00 01 01 00000001 00000000 00000000 00 0000 0000 00 none none
     // ^
-    uint32_t native;
-    if (!parser.parseHexValue(kNativeLen, kNativeMax, kSpace, &native)) {
+    if (!parser.parseHexValue(kNativeLen, kNativeMax, kSpace, &mNative)) {
         parser.printError("Invalid wfd-video-formats native resolution field");
         return ERROR_MALFORMED;
     }
 
-    uint32_t idxVideoTable = native & kNativeTableMask;
-    uint32_t idxVideoMode = native >> kNativeModeOffset;
+    uint32_t idxVideoTable = mNative & kNativeTableMask;
+    uint32_t idxVideoMode = mNative >> kNativeModeOffset;
     if (idxVideoTable <= kVideoTableHh && idxVideoMode < kVideoTableSizes[idxVideoTable]) {
         mNativeMode = kVideoTables[idxVideoTable][idxVideoMode];
         ALOGV("Native mode %dx%d %dHz", mNativeMode.width, mNativeMode.height, mNativeMode.frameRate);
