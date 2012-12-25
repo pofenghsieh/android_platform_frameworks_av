@@ -26,6 +26,12 @@
 namespace android {
 
 struct AudioMode : public RefBase {
+    enum {
+        kLpcmAudioFormat,
+        kAacAudioFormat,
+        kAc3AudioFormat,
+    };
+
     int format;
     int sampleRate;
     int sampleSize;
