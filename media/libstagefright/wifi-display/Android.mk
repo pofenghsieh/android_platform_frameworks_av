@@ -24,6 +24,7 @@ LOCAL_SRC_FILES+= \
         VideoParameters.cpp             \
         AudioParameters.cpp             \
         UibcParameters.cpp              \
+        source/CaptureDevice.cpp        \
 
 endif
 
@@ -34,7 +35,9 @@ LOCAL_C_INCLUDES:= \
 
 ifeq ($(OMAP_ENHANCEMENT), true)
 LOCAL_C_INCLUDES+= \
-        $(TOP)/hardware/ti/domx/omx_core/inc
+        $(TOP)/hardware/ti/domx/omx_core/inc \
+        $(TOP)/hardware/ti/omap4xxx/libdsswb \
+
 endif
 
 LOCAL_SHARED_LIBRARIES:= \
@@ -46,6 +49,12 @@ LOCAL_SHARED_LIBRARIES:= \
         libstagefright_foundation       \
         libui                           \
         libutils                        \
+
+ifeq ($(OMAP_ENHANCEMENT), true)
+LOCAL_SHARED_LIBRARIES+= \
+        libdsswbhal                     \
+
+endif
 
 LOCAL_MODULE:= libstagefright_wfd
 
