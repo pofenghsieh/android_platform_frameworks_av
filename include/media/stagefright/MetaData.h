@@ -179,6 +179,12 @@ enum {
     kTypeD263        = 'd263',
 };
 
+#ifdef OMAP_ENHANCEMENT
+enum {
+    kKeyGenericMPEG4    = 'gnmp',
+};
+#endif
+
 class MetaData : public RefBase {
 public:
     MetaData();

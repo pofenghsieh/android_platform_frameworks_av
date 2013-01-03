@@ -309,6 +309,9 @@ MPEG4Extractor::MPEG4Extractor(const sp<DataSource> &source)
       mFileMetaData(new MetaData),
       mFirstSINF(NULL),
       mIsDrm(false) {
+#ifdef OMAP_ENHANCEMENT
+    mFileMetaData->setInt32(kKeyGenericMPEG4, 1);
+#endif
 }
 
 MPEG4Extractor::~MPEG4Extractor() {

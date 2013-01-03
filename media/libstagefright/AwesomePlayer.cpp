@@ -251,6 +251,7 @@ AwesomePlayer::AwesomePlayer()
       mMaxLatenessMs(0),
       mNextEventUs(0),
       mVSref2SystimePrev(0),
+      mIsWidevineStreaming(false),
       mExtractorType(NULL) {
 #else
       mTextDriver(NULL) {
@@ -448,6 +449,19 @@ status_t AwesomePlayer::setDataSource_l(const sp<MediaExtractor> &extractor) {
 
     bool haveAudio = false;
     bool haveVideo = false;
+
+#ifdef OMAP_ENHANCEMENT
+    bool cachedMP4Stream = false;
+    sp<MetaData> fileMetadata = extractor->getMetaData();
+    fileMetadata->findCString(kKeyMIMEType, &mExtractorType);
+    if ((!strncasecmp("http://", mUri.string(), 7)
+            || !strncasecmp("https://", mUri.string(), 8))
+            && !strcasecmp("video/mp4", mExtractorType)
+            && !mIsWidevineStreaming) {
+        cachedMP4Stream = true;
+    }
+    sp<MediaExtractor> tmpExtractor = extractor;
+#endif
     for (size_t i = 0; i < extractor->countTracks(); ++i) {
         sp<MetaData> meta = extractor->getTrackMetaData(i);
 
@@ -456,8 +470,23 @@ status_t AwesomePlayer::setDataSource_l(const sp<MediaExtractor> &extractor) {
 
         String8 mime = String8(_mime);
 
+#ifdef OMAP_ENHANCEMENT
+        if (cachedMP4Stream) {
+            if (createTrackExtractor(tmpExtractor,
+                    !strncasecmp(mime.string(), "video/", 6)
+                    ? TRACK_EXTRACTOR_VIDEO_TYPE
+                    : TRACK_EXTRACTOR_AUDIO_TYPE) != OK) {
+                ALOGW("Fail to create separate extractor for Track %d", i);
+                tmpExtractor = extractor;
+            }
+        }
+#endif
         if (!haveVideo && !strncasecmp(mime.string(), "video/", 6)) {
+#ifdef OMAP_ENHANCEMENT
+            setVideoSource(tmpExtractor->getTrack(i));
+#else
             setVideoSource(extractor->getTrack(i));
+#endif
             haveVideo = true;
 
             // Set the presentation/display size
@@ -486,7 +515,11 @@ status_t AwesomePlayer::setDataSource_l(const sp<MediaExtractor> &extractor) {
                 stat->mMIME = mime.string();
             }
         } else if (!haveAudio && !strncasecmp(mime.string(), "audio/", 6)) {
+#ifdef OMAP_ENHANCEMENT
+            setAudioSource(tmpExtractor->getTrack(i));
+#else
             setAudioSource(extractor->getTrack(i));
+#endif
             haveAudio = true;
             mActiveAudioTrackIndex = i;
 
@@ -1572,8 +1605,11 @@ status_t AwesomePlayer::initVideoDecoder(uint32_t flags) {
 #ifdef OMAP_ENHANCEMENT
     sp<MetaData> fileMetadata = mExtractor->getMetaData();
     bool isAvailable = fileMetadata->findCString(kKeyMIMEType, &mExtractorType);
+    int32_t isGeneric = 0;
+    bool hasSourceType = fileMetadata->findInt32(kKeyGenericMPEG4, &isGeneric);
     bool have_delta_table = true;
-    if (!strcasecmp("video/mp4", mExtractorType)) {
+    if (!strcasecmp("video/mp4", mExtractorType)
+            && hasSourceType && isGeneric != 0) {
         struct MediaSourceWithHaveDeltaTable *msdt =
                 static_cast<MediaSourceWithHaveDeltaTable*>(mVideoTrack.get());
         have_delta_table = msdt->haveDeltaTable();
@@ -2228,9 +2264,15 @@ status_t AwesomePlayer::finishSetDataSource_l() {
     ATRACE_CALL();
     sp<DataSource> dataSource;
 
+#ifndef OMAP_ENHANCEMENT
     bool isWidevineStreaming = false;
+#endif
     if (!strncasecmp("widevine://", mUri.string(), 11)) {
+#ifdef OMAP_ENHANCEMENT
+        mIsWidevineStreaming = true;
+#else
         isWidevineStreaming = true;
+#endif
 
         String8 newURI = String8("http://");
         newURI.append(mUri.string() + 11);
@@ -2242,7 +2284,11 @@ status_t AwesomePlayer::finishSetDataSource_l() {
 
     if (!strncasecmp("http://", mUri.string(), 7)
             || !strncasecmp("https://", mUri.string(), 8)
+#ifdef OMAP_ENHANCEMENT
+            || mIsWidevineStreaming) {
+#else
             || isWidevineStreaming) {
+#endif
         mConnectingDataSource = HTTPBase::Create(
                 (mFlags & INCOGNITO)
                     ? HTTPBase::kFlagIncognito
@@ -2268,7 +2314,11 @@ status_t AwesomePlayer::finishSetDataSource_l() {
             return err;
         }
 
+#ifdef OMAP_ENHANCEMENT
+        if (!mIsWidevineStreaming) {
+#else
         if (!isWidevineStreaming) {
+#endif
             // The widevine extractor does its own caching.
 
 #if 0
@@ -2376,7 +2426,11 @@ status_t AwesomePlayer::finishSetDataSource_l() {
 
     sp<MediaExtractor> extractor;
 
+#ifdef OMAP_ENHANCEMENT
+    if (mIsWidevineStreaming) {
+#else
     if (isWidevineStreaming) {
+#endif
         String8 mimeType;
         float confidence;
         sp<AMessage> dummy;
@@ -2903,5 +2957,62 @@ void AwesomePlayer::modifyFlags(unsigned value, FlagMode mode) {
         mStats.mFlags = mFlags;
     }
 }
+
+#ifdef OMAP_ENHANCEMENT
+status_t AwesomePlayer::createTrackExtractor(sp<MediaExtractor> &trackExtractor, track_extractor_t type) {
+    sp<HTTPBase> connectingDataSource = HTTPBase::Create(
+            (mFlags & INCOGNITO)
+                ? HTTPBase::kFlagIncognito
+                : 0);
+
+
+    if (mUIDValid) {
+        connectingDataSource->setUID(mUID);
+    }
+
+    String8 cacheConfig;
+    bool disconnectAtHighwatermark;
+
+    NuCachedSource2::RemoveCacheSpecificHeaders(
+            &mUriHeaders, &cacheConfig, &disconnectAtHighwatermark);
+
+    mLock.unlock();
+    status_t err = connectingDataSource->connect(mUri, &mUriHeaders);
+    mLock.lock();
+
+    if (err != OK) {
+        connectingDataSource.clear();
+
+        ALOGI("connectingDataSource->connect() returned %d", err);
+        return err;
+    }
+
+    sp<NuCachedSource2> cachedSource = new NuCachedSource2(
+                connectingDataSource,
+                cacheConfig.isEmpty() ? NULL : cacheConfig.string(),
+                disconnectAtHighwatermark);
+
+    connectingDataSource.clear();
+
+    if (cachedSource == NULL) {
+        return UNKNOWN_ERROR;
+    }
+
+    trackExtractor = MediaExtractor::Create(
+            cachedSource, NULL);
+
+    if (trackExtractor == NULL) {
+        return UNKNOWN_ERROR;
+    }
+
+    if (type == TRACK_EXTRACTOR_VIDEO_TYPE) {
+        mCachedSource.clear();
+        mCachedSource = cachedSource;
+        mExtractor = trackExtractor;
+    }
+
+    return OK;
+}
+#endif
 
 }  // namespace android
