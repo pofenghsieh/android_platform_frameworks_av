@@ -30,6 +30,10 @@ struct ISurfaceTexture;
 struct MediaPuller;
 struct MediaSource;
 struct TSPacketizer;
+#ifdef OMAP_ENHANCEMENT
+struct VideoMode;
+struct AudioMode;
+#endif
 
 // Encapsulates the state of an RTP/RTCP session in the context of wifi
 // display.
@@ -40,10 +44,18 @@ struct WifiDisplaySource::PlaybackSession : public AHandler {
             const struct in_addr &interfaceAddr,
             const sp<IHDCP> &hdcp);
 
+#ifdef OMAP_ENHANCEMENT
+    status_t init(
+            const char *clientIP, int32_t clientRtp, int32_t clientRtcp,
+            Sender::TransportMode transportMode,
+            const sp<VideoMode> &videoMode,
+            const sp<AudioMode> &audioMode);
+#else
     status_t init(
             const char *clientIP, int32_t clientRtp, int32_t clientRtcp,
             Sender::TransportMode transportMode,
             bool usePCMAudio);
+#endif
 
     void destroyAsync();
 
@@ -106,6 +118,21 @@ private:
 
     bool mAllTracksHavePacketizerIndex;
 
+#ifdef OMAP_ENHANCEMENT
+    sp<VideoMode> mVideoMode;
+    sp<AudioMode> mAudioMode;
+
+    status_t setupPacketizer();
+
+    status_t addSource(
+            const sp<AMessage> &format,
+            const sp<MediaSource> &source,
+            bool isRepeaterSource,
+            size_t *numInputBuffers);
+
+    status_t addVideoSource();
+    status_t addAudioSource();
+#else
     status_t setupPacketizer(bool usePCMAudio);
 
     status_t addSource(
@@ -117,6 +144,7 @@ private:
 
     status_t addVideoSource();
     status_t addAudioSource(bool usePCMAudio);
+#endif
 
     ssize_t appendTSData(
             const void *data, size_t size, bool timeDiscontinuity, bool flush);

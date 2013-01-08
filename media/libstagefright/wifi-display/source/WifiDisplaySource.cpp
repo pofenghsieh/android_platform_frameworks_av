@@ -1196,7 +1196,12 @@ status_t WifiDisplaySource::onSetupRequest(
             clientRtp,
             clientRtcp,
             transportMode,
+#ifdef OMAP_ENHANCEMENT
+            mVideoMode,
+            mAudioMode);
+#else
             mUsingPCMAudio);
+#endif
 
     if (err != OK) {
         looper()->unregisterHandler(playbackSession->id());
