@@ -62,6 +62,8 @@ static const uint32_t kSliceEncMask = 0x1FFF;
 static const int kFrameRateControlLen = 2;
 static const uint32_t kFrameRateControlMask = 0x1F;
 
+static const uint32_t kNativeDefaultVideoMode = 0;
+
 const int kLevelTable[5] = {
     OMX_VIDEO_AVCLevel31,
     OMX_VIDEO_AVCLevel32,
@@ -576,19 +578,25 @@ sp<VideoMode> VideoParameters::getBestVideoMode(
         }
     }
 
-    // Check if sink native video mode is in list of capable video modes
-    List< sp<VideoMode> >::iterator it = modeList.begin();
-    while (it != modeList.end()) {
-        const sp<VideoMode> &capableMode = *it++;
-        if ((*capableMode.get()).width == sinkParams->mNativeMode.width &&
-                (*capableMode.get()).height == sinkParams->mNativeMode.height &&
-                (*capableMode.get()).frameRate == sinkParams->mNativeMode.frameRate) {
-            return capableMode;
+    // RTSP layer doesn't have a way to notify source about incorrect
+    // value in the native field. So sinks use value 0 (640x480) in case
+    // of uncertain native display resolution. So we will ignore native
+    // video mode in case the sink reported 0.
+    if (mNative != kNativeDefaultVideoMode) {
+        // Check if sink native video mode is in list of capable video modes
+        List< sp<VideoMode> >::iterator it = modeList.begin();
+        while (it != modeList.end()) {
+            const sp<VideoMode> &capableMode = *it++;
+            if ((*capableMode.get()).width == sinkParams->mNativeMode.width &&
+                    (*capableMode.get()).height == sinkParams->mNativeMode.height &&
+                    (*capableMode.get()).frameRate == sinkParams->mNativeMode.frameRate) {
+                return capableMode;
+            }
         }
     }
 
     // Do choice of best video mode
-    it = modeList.begin();
+    List< sp<VideoMode> >::iterator it = modeList.begin();
     sp<VideoMode> &bestMode = *it++;
     while (it != modeList.end()) {
         const sp<VideoMode> &mode = *it++;
