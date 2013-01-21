@@ -24,6 +24,7 @@ LOCAL_SRC_FILES+= \
         VideoParameters.cpp             \
         AudioParameters.cpp             \
         UibcParameters.cpp              \
+        RtspConfig.cpp                  \
         source/CaptureDevice.cpp        \
 
 endif
@@ -37,6 +38,8 @@ ifeq ($(OMAP_ENHANCEMENT), true)
 LOCAL_C_INCLUDES+= \
         $(TOP)/hardware/ti/domx/omx_core/inc \
         $(TOP)/hardware/ti/omap4xxx/libdsswb \
+        $(TOP)/external/libxml2/include \
+        $(TOP)/external/icu4c/common \
 
 endif
 
@@ -53,6 +56,10 @@ LOCAL_SHARED_LIBRARIES:= \
 ifeq ($(OMAP_ENHANCEMENT), true)
 LOCAL_SHARED_LIBRARIES+= \
         libdsswbhal                     \
+        libicuuc                        \
+
+LOCAL_STATIC_LIBRARIES:= \
+        libxml2                         \
 
 endif
 
