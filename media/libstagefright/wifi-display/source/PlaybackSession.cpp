@@ -27,6 +27,11 @@
 #include "TSPacketizer.h"
 #include "include/avc_utils.h"
 
+#ifdef OMAP_ENHANCEMENT
+#include "VideoParameters.h"
+#include "AudioParameters.h"
+#endif
+
 #include <binder/IServiceManager.h>
 #include <gui/ISurfaceComposer.h>
 #include <gui/SurfaceComposerClient.h>
@@ -329,8 +334,17 @@ WifiDisplaySource::PlaybackSession::PlaybackSession(
 status_t WifiDisplaySource::PlaybackSession::init(
         const char *clientIP, int32_t clientRtp, int32_t clientRtcp,
         Sender::TransportMode transportMode,
+#ifdef OMAP_ENHANCEMENT
+        const sp<VideoMode> &videoMode,
+        const sp<AudioMode> &audioMode) {
+    mVideoMode = videoMode;
+    mAudioMode = audioMode;
+
+    status_t err = setupPacketizer();
+#else
         bool usePCMAudio) {
     status_t err = setupPacketizer(usePCMAudio);
+#endif
 
     if (err != OK) {
         return err;
@@ -585,7 +599,11 @@ void WifiDisplaySource::PlaybackSession::onMessageReceived(
     }
 }
 
+#ifdef OMAP_ENHANCEMENT
+status_t WifiDisplaySource::PlaybackSession::setupPacketizer() {
+#else
 status_t WifiDisplaySource::PlaybackSession::setupPacketizer(bool usePCMAudio) {
+#endif
     mPacketizer = new TSPacketizer;
 
     status_t err = addVideoSource();
@@ -594,13 +612,31 @@ status_t WifiDisplaySource::PlaybackSession::setupPacketizer(bool usePCMAudio) {
         return err;
     }
 
+#ifdef OMAP_ENHANCEMENT
+    return addAudioSource();
+#else
     return addAudioSource(usePCMAudio);
+#endif
 }
 
 status_t WifiDisplaySource::PlaybackSession::addSource(
+#ifdef OMAP_ENHANCEMENT
+        const sp<AMessage> &format, const sp<MediaSource> &source,
+        bool isRepeaterSource, size_t *numInputBuffers) {
+
+    AString mime;
+    CHECK(format->findString("mime", &mime));
+
+    bool isVideo = false;
+    if (!strncasecmp("video/", mime.c_str(), 6)) {
+        isVideo = true;
+    }
+#else
         bool isVideo, const sp<MediaSource> &source, bool isRepeaterSource,
         bool usePCMAudio, size_t *numInputBuffers) {
     CHECK(!usePCMAudio || !isVideo);
+#endif
+
     CHECK(!isRepeaterSource || isVideo);
 
     sp<ALooper> pullLooper = new ALooper;
@@ -625,6 +661,7 @@ status_t WifiDisplaySource::PlaybackSession::addSource(
 
     trackIndex = mTracks.size();
 
+#ifndef OMAP_ENHANCEMENT
     sp<AMessage> format;
     status_t err = convertMetaDataToMessage(source->getFormat(), &format);
     CHECK_EQ(err, (status_t)OK);
@@ -635,12 +672,17 @@ status_t WifiDisplaySource::PlaybackSession::addSource(
         format->setInt32(
                 "color-format", OMX_COLOR_FormatAndroidOpaque);
     }
+#endif
 
     notify = new AMessage(kWhatConverterNotify, id());
     notify->setSize("trackIndex", trackIndex);
 
     sp<Converter> converter =
+#ifdef OMAP_ENHANCEMENT
+        new Converter(notify, codecLooper, format);
+#else
         new Converter(notify, codecLooper, format, usePCMAudio);
+#endif
 
     if (converter->initCheck() != OK) {
         return converter->initCheck();
@@ -679,6 +721,70 @@ status_t WifiDisplaySource::PlaybackSession::addSource(
     return OK;
 }
 
+#ifdef OMAP_ENHANCEMENT
+status_t WifiDisplaySource::PlaybackSession::addVideoSource() {
+    sp<SurfaceMediaSource> source = new SurfaceMediaSource(width(), height());
+
+    source->setUseAbsoluteTimestamps();
+
+    sp<AMessage> format;
+
+    sp<RepeaterSource> videoSource =
+        new RepeaterSource(source, mVideoMode->frameRate);
+
+    status_t err = convertMetaDataToMessage(videoSource->getFormat(), &format);
+    CHECK_EQ(err, (status_t)OK);
+
+    format->setInt32("store-metadata-in-buffers", true);
+    format->setInt32("color-format", OMX_COLOR_FormatAndroidOpaque);
+    format->setInt32("frame-rate", mVideoMode->frameRate);
+
+    size_t numInputBuffers;
+    err = addSource(
+            format, videoSource, true /* isRepeaterSource */,
+            &numInputBuffers);
+
+    if (err != OK) {
+        return err;
+    }
+
+    err = source->setMaxAcquiredBufferCount(numInputBuffers);
+    CHECK_EQ(err, (status_t)OK);
+
+    mBufferQueue = source->getBufferQueue();
+
+    return OK;
+}
+
+status_t WifiDisplaySource::PlaybackSession::addAudioSource() {
+    sp<AudioSource> audioSource = new AudioSource(
+            AUDIO_SOURCE_REMOTE_SUBMIX,
+            mAudioMode->sampleRate,
+            mAudioMode->channelNum);
+
+    if (audioSource->initCheck() == OK) {
+        sp<AMessage> format;
+        status_t err = convertMetaDataToMessage(audioSource->getFormat(), &format);
+        CHECK_EQ(err, (status_t)OK);
+        if (mAudioMode->format == AudioMode::kLpcmAudioFormat) {
+            format->setString("codec", "LPCM");
+        } else if (mAudioMode->format == AudioMode::kAacAudioFormat) {
+            format->setString("codec", "AAC");
+        } else {
+            format->setString("codec", "AC3");
+        }
+
+        return addSource(
+                format, audioSource, false /* isRepeaterSource */,
+                NULL /* numInputBuffers */);
+    }
+
+    ALOGW("Unable to instantiate audio source");
+
+    return OK;
+}
+
+#else
 status_t WifiDisplaySource::PlaybackSession::addVideoSource() {
     sp<SurfaceMediaSource> source = new SurfaceMediaSource(width(), height());
 
@@ -729,17 +835,26 @@ status_t WifiDisplaySource::PlaybackSession::addAudioSource(bool usePCMAudio) {
 
     return OK;
 }
+#endif
 
 sp<ISurfaceTexture> WifiDisplaySource::PlaybackSession::getSurfaceTexture() {
     return mBufferQueue;
 }
 
 int32_t WifiDisplaySource::PlaybackSession::width() const {
+#ifdef OMAP_ENHANCEMENT
+    return mVideoMode->width;
+#else
     return 1280;
+#endif
 }
 
 int32_t WifiDisplaySource::PlaybackSession::height() const {
+#ifdef OMAP_ENHANCEMENT
+    return mVideoMode->height;
+#else
     return 720;
+#endif
 }
 
 void WifiDisplaySource::PlaybackSession::requestIDRFrame() {

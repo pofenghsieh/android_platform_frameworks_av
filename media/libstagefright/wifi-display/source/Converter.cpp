@@ -73,6 +73,48 @@ Converter::Converter(
     }
 }
 
+#ifdef OMAP_ENHANCEMENT
+Converter::Converter(
+        const sp<AMessage> &notify,
+        const sp<ALooper> &codecLooper,
+        const sp<AMessage> &format)
+    : mInitCheck(NO_INIT),
+      mNotify(notify),
+      mCodecLooper(codecLooper),
+      mInputFormat(format),
+      mIsVideo(false),
+      mIsPCMAudio(false),
+      mDoMoreWorkPending(false)
+#if ENABLE_SILENCE_DETECTION
+      ,mFirstSilentFrameUs(-1ll)
+      ,mInSilentMode(false)
+#endif
+    {
+    AString mime;
+    CHECK(mInputFormat->findString("mime", &mime));
+
+    if (!strncasecmp("video/", mime.c_str(), 6)) {
+        mIsVideo = true;
+    } else {
+        CHECK(mInputFormat->findString("codec", &mime));
+        if (!strncasecmp("LPCM", mime.c_str(), 4)) {
+            mIsPCMAudio = true;
+        } else {
+            mIsPCMAudio = false;
+        }
+    }
+
+    mInitCheck = initEncoder();
+
+    if (mInitCheck != OK) {
+        if (mEncoder != NULL) {
+            mEncoder->release();
+            mEncoder.clear();
+        }
+    }
+}
+#endif
+
 Converter::~Converter() {
     CHECK(mEncoder == NULL);
 }
@@ -155,7 +197,9 @@ status_t Converter::initEncoder() {
     } else {
         mOutputFormat->setInt32("bitrate", videoBitrate);
         mOutputFormat->setInt32("bitrate-mode", OMX_Video_ControlRateConstant);
+#ifndef OMAP_ENHANCEMENT
         mOutputFormat->setInt32("frame-rate", 30);
+#endif
         mOutputFormat->setInt32("i-frame-interval", 1);  // Iframes every 1 secs
         mOutputFormat->setInt32("prepend-sps-pps-to-idr-frames", 1);
 #ifdef OMAP_ENHANCEMENT

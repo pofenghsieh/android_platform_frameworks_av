@@ -39,6 +39,13 @@ struct Converter : public AHandler {
             const sp<AMessage> &format,
             bool usePCMAudio);
 
+#ifdef OMAP_ENHANCEMENT
+    Converter(
+            const sp<AMessage> &notify,
+            const sp<ALooper> &codecLooper,
+            const sp<AMessage> &format);
+#endif
+
     status_t initCheck() const;
 
     size_t getInputBufferCount() const;
