@@ -29,6 +29,12 @@ namespace android {
 struct IHDCP;
 struct IRemoteDisplayClient;
 struct ParsedMessage;
+#ifdef OMAP_ENHANCEMENT
+struct VideoParameters;
+struct AudioParameters;
+struct VideoMode;
+struct AudioMode;
+#endif
 
 // Represents the RTSP server acting as a wifi display source.
 // Manages incoming connections, sets up Playback sessions as necessary.
@@ -112,6 +118,15 @@ private:
     int32_t mChosenRTPPort;  // extracted from "wfd_client_rtp_ports"
 
     bool mUsingPCMAudio;
+
+#ifdef OMAP_ENHANCEMENT
+    sp<VideoParameters> mVideoParams;
+    sp<VideoMode> mVideoMode;
+
+    sp<AudioParameters> mAudioParams;
+    sp<AudioMode> mAudioMode;
+#endif
+
     int32_t mClientSessionID;
 
     struct ClientInfo {
