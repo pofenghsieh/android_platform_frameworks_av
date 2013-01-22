@@ -27,6 +27,7 @@
 #ifdef OMAP_ENHANCEMENT
 #include "VideoParameters.h"
 #include "AudioParameters.h"
+#include "RtspConfig.h"
 #endif
 
 #include <binder/IServiceManager.h>
@@ -127,8 +128,19 @@ void WifiDisplaySource::onMessageReceived(const sp<AMessage> &msg) {
             status_t err = OK;
 
 #ifdef OMAP_ENHANCEMENT
-            mVideoParams = VideoParameters::parse(kDefaultVideoCapabilities);
-            mAudioParams = AudioParameters::parse(kDefaultAudioCapabilities);
+            sp<RtspConfig> config = RtspConfig::read("/system/etc/wfd/wfd_source_cfg.xml", NULL);
+            if (config != NULL) {
+                mVideoParams = VideoParameters::parse(config->getVideoCaps().c_str());
+                mAudioParams = AudioParameters::parse(config->getAudioCaps().c_str());
+            }
+            if (mVideoParams == NULL) {
+                ALOGD("The source uses hardcoded video capabilities");
+                mVideoParams = VideoParameters::parse(kDefaultVideoCapabilities);
+            }
+            if (mAudioParams == NULL) {
+                ALOGD("The source uses hardcoded audio capabilities");
+                mAudioParams = AudioParameters::parse(kDefaultAudioCapabilities);
+            }
             if (mVideoParams == NULL || mAudioParams == NULL) {
                 ALOGE("The source default Video/Audio capabilities have errors");
                 err = -EINVAL;
