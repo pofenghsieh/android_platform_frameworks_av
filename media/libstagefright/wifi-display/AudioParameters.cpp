@@ -286,7 +286,6 @@ sp<AudioMode> AudioParameters::getBestAudioMode(const sp<AudioParameters> &sinkP
         List< sp<AudioMode> >::iterator it = modeList.begin();
         while (it != modeList.end()) {
             const sp<AudioMode> &capableMode = *it++;
-            ALOGD("%s", capableMode->toString().c_str());
             if (*capableMode.get() == *desiredMode.get()) {
                 ALOGV("Desired and best audio mode %s", capableMode->toString().c_str());
                 return desiredMode;
