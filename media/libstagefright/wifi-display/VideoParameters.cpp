@@ -365,8 +365,8 @@ sp<VideoMode> VideoParameters::applyVideoMode(const char * data) {
 
     // Check all supported profiles to find suitable one
     List< sp<H264Codec> >::iterator it = mH264Codecs.begin();
-    while (it != mH264Codecs.end()) {
-        const sp<H264Codec> &capCodec = *it++;
+    for (; it != mH264Codecs.end(); it++) {
+        const sp<H264Codec> &capCodec = *it;
         if (!(capCodec->profile & newCodec->profile)) continue;
         if (!(capCodec->level & newCodec->level)) continue;
         switch (idxVideoTable) {
