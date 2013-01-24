@@ -43,7 +43,11 @@ public:
 
     // This is an over-estimate, and could dupe the caller into making a blocking write()
     // FIXME Use an audio HAL API to query the buffer emptying status when it's available.
+#ifdef OMAP_ENHANCEMENT
+    virtual ssize_t availableToWrite() const { return mStreamBufferSizeBytes / mFrameSize; }
+#else
     virtual ssize_t availableToWrite() const { return mStreamBufferSizeBytes >> mBitShift; }
+#endif
 
     virtual ssize_t write(const void *buffer, size_t count);
 

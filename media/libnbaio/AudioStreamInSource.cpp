@@ -48,7 +48,11 @@ ssize_t AudioStreamInSource::negotiate(const NBAIO_Format offers[], size_t numOf
             audio_channel_mask_t channelMask =
                     (audio_channel_mask_t) mStream->common.get_channels(&mStream->common);
             mFormat = Format_from_SR_C(sampleRate, popcount(channelMask));
+#ifdef OMAP_ENHANCEMENT
+            mFrameSize = Format_frameSize(mFormat);
+#else
             mBitShift = Format_frameBitShift(mFormat);
+#endif
         }
     }
     return NBAIO_Source::negotiate(offers, numOffers, counterOffers, numCounterOffers);
@@ -70,9 +74,17 @@ ssize_t AudioStreamInSource::read(void *buffer, size_t count)
     if (CC_UNLIKELY(mFormat == Format_Invalid)) {
         return NEGOTIATE;
     }
+#ifdef OMAP_ENHANCEMENT
+    ssize_t bytesRead = mStream->read(mStream, buffer, count * mFrameSize);
+#else
     ssize_t bytesRead = mStream->read(mStream, buffer, count << mBitShift);
+#endif
     if (bytesRead > 0) {
+#ifdef OMAP_ENHANCEMENT
+        size_t framesRead = bytesRead / mFrameSize;
+#else
         size_t framesRead = bytesRead >> mBitShift;
+#endif
         mFramesRead += framesRead;
         return framesRead;
     } else {

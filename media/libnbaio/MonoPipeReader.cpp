@@ -73,11 +73,19 @@ ssize_t MonoPipeReader::read(void *buffer, size_t count, int64_t readPTS)
         part1 = red;
     }
     if (CC_LIKELY(part1 > 0)) {
+#ifdef OMAP_ENHANCEMENT
+        memcpy(buffer, (char *) mPipe->mBuffer + (front * mFrameSize), part1 * mFrameSize);
+#else
         memcpy(buffer, (char *) mPipe->mBuffer + (front << mBitShift), part1 << mBitShift);
+#endif
         if (CC_UNLIKELY(front + part1 == mPipe->mMaxFrames)) {
             size_t part2 = red - part1;
             if (CC_LIKELY(part2 > 0)) {
+#ifdef OMAP_ENHANCEMENT
+                memcpy((char *) buffer + (part1 * mFrameSize), mPipe->mBuffer, part2 * mFrameSize);
+#else
                 memcpy((char *) buffer + (part1 << mBitShift), mPipe->mBuffer, part2 << mBitShift);
+#endif
             }
         }
         mPipe->updateFrontAndNRPTS(red + mPipe->mFront, nextReadPTS);

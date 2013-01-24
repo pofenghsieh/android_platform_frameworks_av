@@ -76,14 +76,22 @@ ssize_t PipeReader::read(void *buffer, size_t count, int64_t readPTS)
         red = count;
     }
     // In particular, an overrun during the memcpy will result in reading corrupt data
+#ifdef OMAP_ENHANCEMENT
+    memcpy(buffer, (char *) mPipe.mBuffer + (front * mFrameSize), red * mFrameSize);
+#else
     memcpy(buffer, (char *) mPipe.mBuffer + (front << mBitShift), red << mBitShift);
+#endif
     // We could re-read the rear pointer here to detect the corruption, but why bother?
     if (CC_UNLIKELY(front + red == mPipe.mMaxFrames)) {
         if (CC_UNLIKELY((count -= red) > front)) {
             count = front;
         }
         if (CC_LIKELY(count > 0)) {
+#ifdef OMAP_ENHANCEMENT
+            memcpy((char *) buffer + (red * mFrameSize), mPipe.mBuffer, count * mFrameSize);
+#else
             memcpy((char *) buffer + (red << mBitShift), mPipe.mBuffer, count << mBitShift);
+#endif
             red += count;
         }
     }

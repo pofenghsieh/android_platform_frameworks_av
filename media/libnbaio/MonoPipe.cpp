@@ -112,11 +112,19 @@ ssize_t MonoPipe::write(const void *buffer, size_t count)
             part1 = written;
         }
         if (CC_LIKELY(part1 > 0)) {
+#ifdef OMAP_ENHANCEMENT
+            memcpy((char *) mBuffer + (rear * mFrameSize), buffer, part1 * mFrameSize);
+#else
             memcpy((char *) mBuffer + (rear << mBitShift), buffer, part1 << mBitShift);
+#endif
             if (CC_UNLIKELY(rear + part1 == mMaxFrames)) {
                 size_t part2 = written - part1;
                 if (CC_LIKELY(part2 > 0)) {
+#ifdef OMAP_ENHANCEMENT
+                    memcpy(mBuffer, (char *) buffer + (part1 * mFrameSize), part2 * mFrameSize);
+#else
                     memcpy(mBuffer, (char *) buffer + (part1 << mBitShift), part2 << mBitShift);
+#endif
                 }
             }
             android_atomic_release_store(written + mRear, &mRear);
@@ -126,7 +134,11 @@ ssize_t MonoPipe::write(const void *buffer, size_t count)
             break;
         }
         count -= written;
+#ifdef OMAP_ENHANCEMENT
+        buffer = (char *) buffer + (written * mFrameSize);
+#else
         buffer = (char *) buffer + (written << mBitShift);
+#endif
         // Simulate blocking I/O by sleeping at different rates, depending on a throttle.
         // The throttle tries to keep the mean pipe depth near the setpoint, with a slight jitter.
         uint32_t ns;

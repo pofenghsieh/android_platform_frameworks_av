@@ -38,6 +38,9 @@ SourceAudioBufferProvider::SourceAudioBufferProvider(const sp<NBAIO_Source>& sou
     index = source->negotiate(counterOffers, 1, NULL, numCounterOffers);
     ALOG_ASSERT(index == 0);
     mFrameBitShift = Format_frameBitShift(source->format());
+#ifdef OMAP_ENHANCEMENT
+    mFrameSize = Format_frameSize(source->format());
+#endif
 }
 
 SourceAudioBufferProvider::~SourceAudioBufferProvider()
@@ -54,14 +57,22 @@ status_t SourceAudioBufferProvider::getNextBuffer(Buffer *buffer, int64_t pts)
         if (mRemaining < buffer->frameCount) {
             buffer->frameCount = mRemaining;
         }
+#ifdef OMAP_ENHANCEMENT
+        buffer->raw = (char *) mAllocated + (mOffset * mFrameSize);
+#else
         buffer->raw = (char *) mAllocated + (mOffset << mFrameBitShift);
+#endif
         mGetCount = buffer->frameCount;
         return OK;
     }
     // do we need to reallocate?
     if (buffer->frameCount > mSize) {
         free(mAllocated);
+#ifdef OMAP_ENHANCEMENT
+        mAllocated = malloc(buffer->frameCount * mFrameSize);
+#else
         mAllocated = malloc(buffer->frameCount << mFrameBitShift);
+#endif
         mSize = buffer->frameCount;
     }
     // read from source
@@ -84,7 +95,11 @@ status_t SourceAudioBufferProvider::getNextBuffer(Buffer *buffer, int64_t pts)
 void SourceAudioBufferProvider::releaseBuffer(Buffer *buffer)
 {
     ALOG_ASSERT((buffer != NULL) &&
+#ifdef OMAP_ENHANCEMENT
+            (buffer->raw == (char *) mAllocated + (mOffset * mFrameSize)) &&
+#else
             (buffer->raw == (char *) mAllocated + (mOffset << mFrameBitShift)) &&
+#endif
             (buffer->frameCount <= mGetCount) &&
             (mGetCount <= mRemaining) &&
             (mOffset + mRemaining <= mSize));

@@ -52,13 +52,21 @@ ssize_t Pipe::write(const void *buffer, size_t count)
     if (CC_LIKELY(written > count)) {
         written = count;
     }
+#ifdef OMAP_ENHANCEMENT
+    memcpy((char *) mBuffer + (rear * mFrameSize), buffer, written * mFrameSize);
+#else
     memcpy((char *) mBuffer + (rear << mBitShift), buffer, written << mBitShift);
+#endif
     if (CC_UNLIKELY(rear + written == mMaxFrames)) {
         if (CC_UNLIKELY((count -= written) > rear)) {
             count = rear;
         }
         if (CC_LIKELY(count > 0)) {
+#ifdef OMAP_ENHANCEMENT
+            memcpy(mBuffer, (char *) buffer + (written * mFrameSize), count * mFrameSize);
+#else
             memcpy(mBuffer, (char *) buffer + (written << mBitShift), count << mBitShift);
+#endif
             written += count;
         }
     }

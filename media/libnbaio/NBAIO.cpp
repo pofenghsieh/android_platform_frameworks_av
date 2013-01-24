@@ -31,6 +31,11 @@ size_t Format_frameSize(NBAIO_Format format)
     case Format_SR44_1_C1_I16:
     case Format_SR48_C1_I16:
         return 1 * sizeof(short);
+#ifdef OMAP_ENHANCEMENT
+    case Format_SR44_1_C6_I16:
+    case Format_SR48_C6_I16:
+        return 6 * sizeof(short);
+#endif
     case Format_Invalid:
     default:
         return 0;
@@ -46,6 +51,10 @@ size_t Format_frameBitShift(NBAIO_Format format)
     case Format_SR44_1_C1_I16:
     case Format_SR48_C1_I16:
         return 1;   // 1 << 1 == 1 * sizeof(short)
+#ifdef OMAP_ENHANCEMENT
+    case Format_SR44_1_C6_I16:
+    case Format_SR48_C6_I16:
+#endif
     case Format_Invalid:
     default:
         return 0;
@@ -61,6 +70,12 @@ unsigned Format_sampleRate(NBAIO_Format format)
     case Format_SR48_C1_I16:
     case Format_SR48_C2_I16:
         return 48000;
+#ifdef OMAP_ENHANCEMENT
+    case Format_SR44_1_C6_I16:
+        return 44100;
+    case Format_SR48_C6_I16:
+        return 48000;
+#endif
     case Format_Invalid:
     default:
         return 0;
@@ -76,6 +91,11 @@ unsigned Format_channelCount(NBAIO_Format format)
     case Format_SR44_1_C2_I16:
     case Format_SR48_C2_I16:
         return 2;
+#ifdef OMAP_ENHANCEMENT
+    case Format_SR44_1_C6_I16:
+    case Format_SR48_C6_I16:
+        return 6;
+#endif
     case Format_Invalid:
     default:
         return 0;
@@ -88,6 +108,10 @@ NBAIO_Format Format_from_SR_C(unsigned sampleRate, unsigned channelCount)
     if (sampleRate == 48000 && channelCount == 2) return Format_SR48_C2_I16;
     if (sampleRate == 44100 && channelCount == 1) return Format_SR44_1_C1_I16;
     if (sampleRate == 48000 && channelCount == 1) return Format_SR48_C1_I16;
+#ifdef OMAP_ENHANCEMENT
+    if (sampleRate == 44100 && channelCount == 6) return Format_SR44_1_C6_I16;
+    if (sampleRate == 48000 && channelCount == 6) return Format_SR48_C6_I16;
+#endif
     return Format_Invalid;
 }
 

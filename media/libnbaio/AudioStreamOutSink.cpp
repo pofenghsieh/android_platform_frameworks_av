@@ -45,7 +45,11 @@ ssize_t AudioStreamOutSink::negotiate(const NBAIO_Format offers[], size_t numOff
             audio_channel_mask_t channelMask =
                     (audio_channel_mask_t) mStream->common.get_channels(&mStream->common);
             mFormat = Format_from_SR_C(sampleRate, popcount(channelMask));
+#ifdef OMAP_ENHANCEMENT
+            mFrameSize = Format_frameSize(mFormat);
+#else
             mBitShift = Format_frameBitShift(mFormat);
+#endif
         }
     }
     return NBAIO_Sink::negotiate(offers, numOffers, counterOffers, numCounterOffers);
@@ -57,9 +61,17 @@ ssize_t AudioStreamOutSink::write(const void *buffer, size_t count)
         return NEGOTIATE;
     }
     ALOG_ASSERT(mFormat != Format_Invalid);
+#ifdef OMAP_ENHANCEMENT
+    ssize_t ret = mStream->write(mStream, buffer, count * mFrameSize);
+#else
     ssize_t ret = mStream->write(mStream, buffer, count << mBitShift);
+#endif
     if (ret > 0) {
+#ifdef OMAP_ENHANCEMENT
+        ret /= mFrameSize;
+#else
         ret >>= mBitShift;
+#endif
         mFramesWritten += ret;
     } else {
         // FIXME verify HAL implementations are returning the correct error codes e.g. WOULD_BLOCK

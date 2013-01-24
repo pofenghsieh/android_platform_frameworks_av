@@ -56,6 +56,10 @@ enum NBAIO_Format {
     Format_SR48_C2_I16,     // 48 kHz PCM stereo interleaved 16-bit signed
     Format_SR44_1_C1_I16,   // 44.1 kHz PCM mono interleaved 16-bit signed
     Format_SR48_C1_I16,     // 48 kHz PCM mono interleaved 16-bit signed
+#ifdef OMAP_ENHANCEMENT
+    Format_SR44_1_C6_I16,   // 44.1 kHz PCM 5.1 interleaved 16-bit signed
+    Format_SR48_C6_I16,     // 48 kHz PCM 5.1 interleaved 16-bit signed
+#endif
 };
 
 // Return the frame size of an NBAIO_Format in bytes
@@ -117,14 +121,23 @@ public:
 
 protected:
     NBAIO_Port(NBAIO_Format format) : mNegotiated(false), mFormat(format),
+#ifdef OMAP_ENHANCEMENT
+                                      mFrameSize(Format_frameSize(format)) { }
+#else
                                       mBitShift(Format_frameBitShift(format)) { }
+#endif
     virtual ~NBAIO_Port() { }
 
     // Implementations are free to ignore these if they don't need them
 
     bool            mNegotiated;    // mNegotiated implies (mFormat != Format_Invalid)
     NBAIO_Format    mFormat;        // (mFormat != Format_Invalid) does not imply mNegotiated
-    size_t          mBitShift;      // assign in parallel with any assignment to mFormat
+                                    // assign in parallel with any assignment to mFormat
+#ifdef OMAP_ENHANCEMENT
+    size_t          mFrameSize;
+#else
+    size_t          mBitShift;
+#endif
 };
 
 // Abstract class (interface) representing a non-blocking data sink, for use by a data provider.
