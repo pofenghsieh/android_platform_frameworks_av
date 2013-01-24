@@ -56,7 +56,11 @@ AudioSource::AudioSource(
       mNumFramesReceived(0),
       mNumClientOwnedBuffers(0) {
     ALOGV("sampleRate: %d, channelCount: %d", sampleRate, channelCount);
+#ifdef OMAP_ENHANCEMENT
+    CHECK(channelCount == 1 || channelCount == 2 || channelCount == 6);
+#else
     CHECK(channelCount == 1 || channelCount == 2);
+#endif
 
     int minFrameCount;
     status_t status = AudioRecord::getMinFrameCount(&minFrameCount,
@@ -198,6 +202,14 @@ void AudioSource::rampVolume(
             frame[0] = (frame[0] * fixedMultiplier) >> kShift;
             ++frame;
             ++startFrame;
+#ifdef OMAP_ENHANCEMENT
+        } else if (nChannels == 6) { // multichannel
+            for (int frameCounter = 0; frameCounter < nChannels; frameCounter++) {
+                frame[frameCounter] = (frame[frameCounter] * fixedMultiplier) >> kShift;
+            }
+            frame += nChannels;
+            startFrame += nChannels;
+#endif
         } else {               // stereo
             frame[0] = (frame[0] * fixedMultiplier) >> kShift;
             frame[1] = (frame[1] * fixedMultiplier) >> kShift;
