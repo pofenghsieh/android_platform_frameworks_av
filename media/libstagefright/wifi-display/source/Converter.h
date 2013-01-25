@@ -105,6 +105,10 @@ private:
 
     sp<ABuffer> mPartialAudioAU;
 
+#ifdef OMAP_ENHANCEMENT
+    int32_t mChannelCount;
+#endif
+
     status_t initEncoder();
 
     status_t feedEncoderInputBuffers();

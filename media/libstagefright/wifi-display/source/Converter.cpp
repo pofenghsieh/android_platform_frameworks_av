@@ -102,6 +102,12 @@ Converter::Converter(
         } else {
             mIsPCMAudio = false;
         }
+        int32_t channels;
+        if (mInputFormat->findInt32("channels", &channels)) {
+            mChannelCount = channels;
+        } else {
+            mChannelCount = 2;
+        }
     }
 
     mInitCheck = initEncoder();
@@ -438,7 +444,11 @@ status_t Converter::feedRawAudioInputBuffers() {
             ++ptr;
         }
 
+#ifdef OMAP_ENHANCEMENT
+        static const size_t kFrameSize = mChannelCount * sizeof(int16_t);
+#else
         static const size_t kFrameSize = 2 * sizeof(int16_t);  // stereo
+#endif
         static const size_t kFramesPerAU = 80;
         static const size_t kNumAUsPerPESPacket = 6;
 
@@ -490,7 +500,11 @@ status_t Converter::feedRawAudioInputBuffers() {
 
             static const unsigned kQuantizationWordLength = 0;  // 16-bit
             static const unsigned kAudioSamplingFrequency = 2;  // 48Khz
+#ifdef OMAP_ENHANCEMENT
+            static const unsigned kNumberOfAudioChannels = mChannelCount - 1;
+#else
             static const unsigned kNumberOfAudioChannels = 1;  // stereo
+#endif
 
             ptr[3] = (kQuantizationWordLength << 6)
                     | (kAudioSamplingFrequency << 3)

@@ -773,6 +773,7 @@ status_t WifiDisplaySource::PlaybackSession::addAudioSource() {
         } else {
             format->setString("codec", "AC3");
         }
+        format->setInt32("channels", mAudioMode->channelNum);
 
         return addSource(
                 format, audioSource, false /* isRepeaterSource */,
