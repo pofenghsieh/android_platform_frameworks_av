@@ -582,7 +582,7 @@ sp<VideoMode> VideoParameters::getBestVideoMode(
     // value in the native field. So sinks use value 0 (640x480) in case
     // of uncertain native display resolution. So we will ignore native
     // video mode in case the sink reported 0.
-    if (mNative != kNativeDefaultVideoMode) {
+    if (sinkParams->mNative != kNativeDefaultVideoMode) {
         // Check if sink native video mode is in list of capable video modes
         List< sp<VideoMode> >::iterator it = modeList.begin();
         while (it != modeList.end()) {
