@@ -2815,8 +2815,12 @@ void AudioFlinger::PlaybackThread::threadLoop_write()
 
     // If an NBAIO sink is present, use it to write the normal mixer's submix
     if (mNormalSink != 0) {
+#ifdef OMAP_ENHANCEMENT
+        size_t count = mixBufferSize / (mChannelCount * sizeof(int16_t));
+#else
 #define mBitShift 2 // FIXME
         size_t count = mixBufferSize >> mBitShift;
+#endif
 #if defined(ATRACE_TAG) && (ATRACE_TAG != ATRACE_TAG_NEVER)
         Tracer::traceBegin(ATRACE_TAG, "write");
 #endif
@@ -2835,7 +2839,11 @@ void AudioFlinger::PlaybackThread::threadLoop_write()
         Tracer::traceEnd(ATRACE_TAG);
 #endif
         if (framesWritten > 0) {
+#ifdef OMAP_ENHANCEMENT
+            bytesWritten = framesWritten * (mChannelCount * sizeof(int16_t));
+#else
             bytesWritten = framesWritten << mBitShift;
+#endif
         } else {
             bytesWritten = framesWritten;
         }
