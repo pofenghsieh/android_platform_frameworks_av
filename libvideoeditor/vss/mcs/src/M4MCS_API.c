@@ -2615,6 +2615,10 @@ M4OSA_ERR M4MCS_open( M4MCS_Context pContext, M4OSA_Void *pFileIn,
             {
                 if( ( M4DA_StreamTypeAudioAmrNarrowBand
                     == pStreamHandler->m_streamType)
+#ifdef OMAP_ENHANCEMENT
+                    || (M4DA_StreamTypeAudioAmrWideBand
+                    == pStreamHandler->m_streamType)
+#endif
                     || (M4DA_StreamTypeAudioAac == pStreamHandler->m_streamType)
                     || (M4DA_StreamTypeAudioMp3
                     == pStreamHandler->m_streamType)
@@ -10429,6 +10433,9 @@ M4OSA_ERR M4MCS_open_normalMode(M4MCS_Context pContext, M4OSA_Void* pFileIn,
                 && (M4OSA_NULL == pC->pReaderAudioStream))
             {
                 if ((M4DA_StreamTypeAudioAmrNarrowBand==pStreamHandler->m_streamType) ||
+#ifdef OMAP_ENHANCEMENT
+                    (M4DA_StreamTypeAudioAmrWideBand==pStreamHandler->m_streamType) ||
+#endif
                     (M4DA_StreamTypeAudioAac==pStreamHandler->m_streamType) ||
                     (M4DA_StreamTypeAudioMp3==pStreamHandler->m_streamType) ||
                     (M4DA_StreamTypeAudioEvrc==pStreamHandler->m_streamType) )
