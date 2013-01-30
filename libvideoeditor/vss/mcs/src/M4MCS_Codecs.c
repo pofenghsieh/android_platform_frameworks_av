@@ -883,6 +883,9 @@ M4OSA_ERR   M4MCS_setCurrentAudioDecoder(   M4MCS_Context pContext,
         case M4DA_StreamTypeAudioAmrNarrowBand:
             decoderType = M4AD_kTypeAMRNB;
             break;
+        case M4DA_StreamTypeAudioAmrWideBand:
+            decoderType = M4AD_kTypeAMRWB;
+            break;
         case M4DA_StreamTypeAudioAac:
         case M4DA_StreamTypeAudioAacADTS:
         case M4DA_StreamTypeAudioAacADIF:

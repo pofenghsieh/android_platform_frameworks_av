@@ -41,6 +41,9 @@
 /* -----  AMR NB decoder support ----- */
 #define M4VSS_SUPPORT_AUDEC_AMRNB       /**< [default] Support AMR NB streams */
 
+/* -----  AMR WB decoder support ----- */
+#define M4VSS_SUPPORT_AUDEC_AMRWB       /**< [default] Support AMR WB streams */
+
 /* ----- AAC decoder support ----- */
 #define M4VSS_SUPPORT_AUDEC_AAC            /**< [default] Support AAC, AAC+ and eAAC+ streams */
 #define M4VSS_SUPPORT_VIDEC_NULL

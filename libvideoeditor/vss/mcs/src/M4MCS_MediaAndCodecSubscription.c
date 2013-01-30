@@ -283,6 +283,22 @@ M4OSA_ERR M4MCS_subscribeMediaAndCodec(M4MCS_Context pContext)
          "M4MCS_subscribeMediaAndCodec: can't register PHILIPS AMRNB decoder");
 #endif /* M4VSS_SUPPORT_AUDEC_AMRNB */
 
+    /* --- AMRWB --- */
+
+#ifdef M4VSS_SUPPORT_AUDEC_AMRWB
+    err = VideoEditorAudioDecoder_getInterface_AMRWB(&audioDecoderType,
+                                                &pAudioDecoderInterface);
+    if (M4NO_ERROR != err)
+    {
+        M4OSA_TRACE1_0("M4AD AMRWB interface allocation error");
+        return err;
+    }
+    err = M4MCS_registerAudioDecoder(   pContext, audioDecoderType,
+                                        pAudioDecoderInterface);
+    M4OSA_DEBUG_IF1((err != M4NO_ERROR), err,
+         "M4MCS_subscribeMediaAndCodec: can't register AMRWB decoder");
+#endif /* M4VSS_SUPPORT_AUDEC_AMRWB */
+
     /* --- AAC --- */
 
 #ifdef M4VSS_SUPPORT_AUDEC_AAC
