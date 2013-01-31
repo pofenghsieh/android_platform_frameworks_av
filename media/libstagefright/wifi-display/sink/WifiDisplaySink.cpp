@@ -26,6 +26,7 @@
 #include "Parameters.h"
 #include "VideoParameters.h"
 #include "AudioParameters.h"
+#include "RtspConfig.h"
 #endif
 
 #include <media/stagefright/foundation/ABuffer.h>
@@ -207,8 +208,19 @@ void WifiDisplaySink::onMessageReceived(const sp<AMessage> &msg) {
             }
 
             if (err == OK) {
-                mVideoParams = VideoParameters::parse(kDefaultVideoCapabilities);
-                mAudioParams = AudioParameters::parse(kDefaultAudioCapabilities);
+                sp<RtspConfig> config = RtspConfig::read("/system/etc/wfd/wfd_sink_cfg.xml", NULL);
+                if (config != NULL) {
+                    mVideoParams = VideoParameters::parse(config->getVideoCaps().c_str());
+                    mAudioParams = AudioParameters::parse(config->getAudioCaps().c_str());
+                }
+                if (mVideoParams == NULL) {
+                    ALOGD("The sink uses hardcoded video capabilities");
+                    mVideoParams = VideoParameters::parse(kDefaultVideoCapabilities);
+                }
+                if (mAudioParams == NULL) {
+                    ALOGD("The sink uses hardcoded audio capabilities");
+                    mAudioParams = AudioParameters::parse(kDefaultAudioCapabilities);
+                }
                 if (mVideoParams == NULL || mAudioParams == NULL) {
                     ALOGE("The own default Video/Audio capabilities have errors");
                     err = -EINVAL;
