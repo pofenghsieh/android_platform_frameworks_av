@@ -76,7 +76,7 @@ public:
     AString generateVideoMode(const sp<VideoMode> &mode);
     sp<VideoMode> getBestVideoMode(const sp<VideoParameters> &sinkParams,
             const sp<VideoMode> &desiredMode);
-
+    bool isMatchingVideoMode(const sp<VideoMode> &videoMode);
 
 protected:
     virtual ~VideoParameters();
@@ -86,6 +86,7 @@ private:
     SimpleVideoMode mNativeMode;
     uint32_t mPrefDispModeSupported;
     List< sp<H264Codec> > mH264Codecs;
+    List< sp<VideoMode> > mMatchingModes;
 
     VideoParameters();
     status_t parseParams(const char *data);
@@ -93,6 +94,7 @@ private:
     AString generateH264Format(const sp<H264Codec> &params);
     sp<VideoTable> checkResolution(const sp<VideoMode> &mode);
     List< sp<H264Codec> > *getCodecs();
+    void initMatchingModes(const sp<VideoParameters> &sinkParams);
 };
 
 }  // namespace android

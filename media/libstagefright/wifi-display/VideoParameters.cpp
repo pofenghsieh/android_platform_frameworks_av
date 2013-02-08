@@ -524,12 +524,8 @@ List< sp<VideoParameters::H264Codec> > * VideoParameters::getCodecs() {
     return &mH264Codecs;
 }
 
-sp<VideoMode> VideoParameters::getBestVideoMode(
-        const sp<VideoParameters> &sinkParams, const sp<VideoMode> &desiredMode) {
-    if (sinkParams == NULL) return NULL;
-
+void VideoParameters::initMatchingModes(const sp<VideoParameters> &sinkParams) {
     // Create list of all possible video modes between source and sink
-    List< sp<VideoMode> > modeList;
     List< sp<H264Codec> >::iterator itSelf = mH264Codecs.begin();
     while (itSelf != mH264Codecs.end()) {
         const sp<H264Codec> &selfCodec = *itSelf++;
@@ -563,23 +559,35 @@ sp<VideoMode> VideoParameters::getBestVideoMode(
                     videoMode->height = kVideoTables[table][i].height;
                     videoMode->frameRate = kVideoTables[table][i].frameRate;
                     videoMode->progressive = kVideoTables[table][i].progressive;
-                    modeList.push_back(videoMode);
+                    mMatchingModes.push_back(videoMode);
                 }
             }
         }
     }
+}
+
+bool VideoParameters::isMatchingVideoMode(const sp<VideoMode> &videoMode) {
+    if (videoMode == NULL) return false;
+    List< sp<VideoMode> >::iterator it = mMatchingModes.begin();
+    while (it != mMatchingModes.end()) {
+        const sp<VideoMode> &capableMode = *it++;
+        if (*capableMode.get() == *videoMode.get()) return true;
+    }
+    return false;
+}
+
+sp<VideoMode> VideoParameters::getBestVideoMode(
+        const sp<VideoParameters> &sinkParams, const sp<VideoMode> &desiredMode) {
+    if (sinkParams == NULL) return NULL;
+    initMatchingModes(sinkParams);
 
     // Check if desired video mode is in list of capable video modes
     if (desiredMode != NULL) {
         ALOGV("Check if desired video mode is in list of capable video modes %s",
                 desiredMode->toString().c_str());
-        List< sp<VideoMode> >::iterator it = modeList.begin();
-        while (it != modeList.end()) {
-            sp<VideoMode> capableMode = *it++;
-            if (*capableMode.get() == *desiredMode.get()) {
-                ALOGV("Desired and best video mode %s", capableMode->toString().c_str());
-                return capableMode;
-            }
+        if (isMatchingVideoMode(desiredMode)) {
+            ALOGV("Desired and best video mode %s", desiredMode->toString().c_str());
+            return desiredMode;
         }
     }
 
@@ -589,22 +597,22 @@ sp<VideoMode> VideoParameters::getBestVideoMode(
     // video mode in case the sink reported 0.
     if (sinkParams->mNative != kNativeDefaultVideoMode) {
         // Check if sink native video mode is in list of capable video modes
-        List< sp<VideoMode> >::iterator it = modeList.begin();
-        while (it != modeList.end()) {
+        List< sp<VideoMode> >::iterator it = mMatchingModes.begin();
+        while (it != mMatchingModes.end()) {
             const sp<VideoMode> &capableMode = *it++;
-            if ((*capableMode.get()).width == sinkParams->mNativeMode.width &&
-                    (*capableMode.get()).height == sinkParams->mNativeMode.height &&
-                    (*capableMode.get()).frameRate == sinkParams->mNativeMode.frameRate &&
-                    (*capableMode.get()).progressive == sinkParams->mNativeMode.progressive) {
+            if (capableMode->width == sinkParams->mNativeMode.width &&
+                    capableMode->height == sinkParams->mNativeMode.height &&
+                    capableMode->frameRate == sinkParams->mNativeMode.frameRate &&
+                    capableMode->progressive == sinkParams->mNativeMode.progressive) {
                 return capableMode;
             }
         }
     }
 
     // Do choice of best video mode
-    List< sp<VideoMode> >::iterator it = modeList.begin();
-    sp<VideoMode> &bestMode = *it++;
-    while (it != modeList.end()) {
+    List< sp<VideoMode> >::iterator it = mMatchingModes.begin();
+    sp<VideoMode> bestMode = *it++;
+    while (it != mMatchingModes.end()) {
         const sp<VideoMode> &mode = *it++;
         if (*mode.get() > *bestMode.get()) {
             bestMode = mode;
