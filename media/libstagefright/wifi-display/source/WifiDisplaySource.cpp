@@ -772,9 +772,12 @@ status_t WifiDisplaySource::onReceiveM3Response(
         char val[PROPERTY_VALUE_MAX];
         property_get("media.wfd.video-mode", val, NULL);
 
-        if (sscanf(val, "%*s %dx%d %d", &desiredVideoMode->width, &desiredVideoMode->height,
-                &desiredVideoMode->frameRate) == 3) {
+        char progressive;
+        if (sscanf(val, "%*s %dx%d%c%d", &desiredVideoMode->width, &desiredVideoMode->height,
+                &progressive, &desiredVideoMode->frameRate) == 4 &&
+                (progressive == 'p' || progressive == 'i')) {
             desiredVideoMode->h264HighProfile = !strncasecmp(val, "CHP ", 4) ? true : false;
+            desiredVideoMode->progressive = progressive == 'p' ? true : false;
             ALOGD("Source's desired video mode is %s", desiredVideoMode->toString().c_str());
         } else {
             desiredVideoMode = NULL;

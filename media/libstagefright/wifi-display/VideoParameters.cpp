@@ -77,40 +77,40 @@ const char *kLevelPresentationTable[5] = {
 };
 
 static const SimpleVideoMode kCeaTable[] = {
-    { 640,  480, 60}, { 720,  480, 60},
-    { 720,  480, 60}, { 720,  576, 50},
-    { 720,  576, 50}, {1280,  720, 30},
-    {1280,  720, 60}, {1920, 1080, 30},
-    {1920, 1080, 60}, {1920, 1080, 60},
-    {1280,  720, 25}, {1280,  720, 50},
-    {1920, 1080, 25}, {1920, 1080, 50},
-    {1920, 1080, 50}, {1280,  720, 24},
-    {1920, 1080, 24},
+    { 640,  480, 60, true},  { 720,  480, 60, true},
+    { 720,  480, 60, false}, { 720,  576, 50, true},
+    { 720,  576, 50, false}, {1280,  720, 30, true},
+    {1280,  720, 60, true},  {1920, 1080, 30, true},
+    {1920, 1080, 60, true},  {1920, 1080, 60, false},
+    {1280,  720, 25, true},  {1280,  720, 50, true},
+    {1920, 1080, 25, true},  {1920, 1080, 50, true},
+    {1920, 1080, 50, false}, {1280,  720, 24, true},
+    {1920, 1080, 24, true},
 };
 static const SimpleVideoMode kVesaTable[] = {
-    { 800,  600, 30}, { 800,  600, 60},
-    {1024,  768, 30}, {1024,  768, 60},
-    {1152,  864, 30}, {1152,  864, 60},
-    {1280,  768, 30}, {1280,  768, 60},
-    {1280,  800, 30}, {1280,  800, 60},
-    {1360,  768, 30}, {1360,  768, 60},
-    {1366,  768, 30}, {1366,  768, 60},
-    {1280, 1024, 30}, {1280, 1024, 60},
-    {1400, 1050, 30}, {1400, 1050, 60},
-    {1440,  900, 30}, {1440,  900, 60},
-    {1600,  900, 30}, {1600,  900, 60},
-    {1600, 1200, 30}, {1600, 1200, 60},
-    {1680, 1024, 30}, {1680, 1024, 60},
-    {1680, 1050, 30}, {1680, 1050, 60},
-    {1920, 1200, 30}, {1920, 1200, 60},
+    { 800,  600, 30, true}, { 800,  600, 60, true},
+    {1024,  768, 30, true}, {1024,  768, 60, true},
+    {1152,  864, 30, true}, {1152,  864, 60, true},
+    {1280,  768, 30, true}, {1280,  768, 60, true},
+    {1280,  800, 30, true}, {1280,  800, 60, true},
+    {1360,  768, 30, true}, {1360,  768, 60, true},
+    {1366,  768, 30, true}, {1366,  768, 60, true},
+    {1280, 1024, 30, true}, {1280, 1024, 60, true},
+    {1400, 1050, 30, true}, {1400, 1050, 60, true},
+    {1440,  900, 30, true}, {1440,  900, 60, true},
+    {1600,  900, 30, true}, {1600,  900, 60, true},
+    {1600, 1200, 30, true}, {1600, 1200, 60, true},
+    {1680, 1024, 30, true}, {1680, 1024, 60, true},
+    {1680, 1050, 30, true}, {1680, 1050, 60, true},
+    {1920, 1200, 30, true}, {1920, 1200, 60, true},
 };
 static const SimpleVideoMode kHhTable[] = {
-    {800, 480, 30}, {800, 480, 60},
-    {854, 480, 30}, {854, 480, 60},
-    {864, 480, 30}, {864, 480, 60},
-    {640, 360, 30}, {640, 360, 60},
-    {960, 540, 30}, {960, 540, 60},
-    {848, 480, 30}, {848, 480, 60},
+    {800, 480, 30, true}, {800, 480, 60, true},
+    {854, 480, 30, true}, {854, 480, 60, true},
+    {864, 480, 30, true}, {864, 480, 60, true},
+    {640, 360, 30, true}, {640, 360, 60, true},
+    {960, 540, 30, true}, {960, 540, 60, true},
+    {848, 480, 30, true}, {848, 480, 60, true},
 };
 
 enum { kVideoTableCea, kVideoTableVesa, kVideoTableHh };
@@ -174,7 +174,8 @@ status_t VideoParameters::parseParams(const char *data) {
     uint32_t idxVideoMode = mNative >> kNativeModeOffset;
     if (idxVideoTable <= kVideoTableHh && idxVideoMode < kVideoTableSizes[idxVideoTable]) {
         mNativeMode = kVideoTables[idxVideoTable][idxVideoMode];
-        ALOGV("Native mode %dx%d %dHz", mNativeMode.width, mNativeMode.height, mNativeMode.frameRate);
+        ALOGV("Native mode %dx%d%c%d", mNativeMode.width, mNativeMode.height,
+            mNativeMode.progressive ? 'p' : 'i', mNativeMode.frameRate);
     } else {
         parser.printError("Invalid wfd-video-formats native resolution field");
         return ERROR_MALFORMED;
@@ -407,6 +408,7 @@ sp<VideoMode> VideoParameters::applyVideoMode(const char * data) {
     mode->width = kVideoTables[idxVideoTable][idxVideoMode].width;
     mode->height = kVideoTables[idxVideoTable][idxVideoMode].height;
     mode->frameRate = kVideoTables[idxVideoTable][idxVideoMode].frameRate;
+    mode->progressive = kVideoTables[idxVideoTable][idxVideoMode].progressive;
 
     return mode;
 }
@@ -462,7 +464,8 @@ sp<VideoParameters::VideoTable> VideoParameters::checkResolution(const sp<VideoM
         for (uint32_t idx = 0; idx < kVideoTableSizes[table]; idx++) {
             if (mode->width == kVideoTables[table][idx].width &&
                     mode->height == kVideoTables[table][idx].height &&
-                    mode->frameRate == kVideoTables[table][idx].frameRate) {
+                    mode->frameRate == kVideoTables[table][idx].frameRate &&
+                    mode->progressive == kVideoTables[table][idx].progressive) {
                 sp<VideoTable> videoTable = new VideoTable;
                 videoTable->table = table;
                 videoTable->index = idx;
@@ -477,8 +480,9 @@ AString VideoParameters::generateVideoMode(const sp<VideoMode> &mode) {
     AString s;
     sp<VideoTable> vt = checkResolution(mode);
     if (vt == NULL) {
-        ALOGE("Appropriate resolution has not been found (%dx%dx%d)",
-                mode->width, mode->height, mode->frameRate);
+        ALOGE("Appropriate resolution has not been found (%dx%d%c%d)",
+                mode->width, mode->height, mode->progressive ? 'p' : 'i',
+                mode->frameRate);
         return s;
     }
 
@@ -558,6 +562,7 @@ sp<VideoMode> VideoParameters::getBestVideoMode(
                     videoMode->width = kVideoTables[table][i].width;
                     videoMode->height = kVideoTables[table][i].height;
                     videoMode->frameRate = kVideoTables[table][i].frameRate;
+                    videoMode->progressive = kVideoTables[table][i].progressive;
                     modeList.push_back(videoMode);
                 }
             }
@@ -589,7 +594,8 @@ sp<VideoMode> VideoParameters::getBestVideoMode(
             const sp<VideoMode> &capableMode = *it++;
             if ((*capableMode.get()).width == sinkParams->mNativeMode.width &&
                     (*capableMode.get()).height == sinkParams->mNativeMode.height &&
-                    (*capableMode.get()).frameRate == sinkParams->mNativeMode.frameRate) {
+                    (*capableMode.get()).frameRate == sinkParams->mNativeMode.frameRate &&
+                    (*capableMode.get()).progressive == sinkParams->mNativeMode.progressive) {
                 return capableMode;
             }
         }
@@ -622,7 +628,7 @@ AString VideoMode::toString() {
             break;
         }
     }
-    str.append(StringPrintf(" %dx%d %dHz", width, height, frameRate));
+    str.append(StringPrintf(" %dx%d%c%d", width, height, progressive ? 'p' : 'i', frameRate));
     return str;
 }
 
@@ -630,7 +636,8 @@ bool VideoMode::operator==(const VideoMode &other) const {
     if (h264HighProfile == other.h264HighProfile &&
             width == other.width &&
             height == other.height &&
-            frameRate == other.frameRate) {
+            frameRate == other.frameRate &&
+            progressive == other.progressive) {
         return true;
     }
     return false;
@@ -640,6 +647,7 @@ bool VideoMode::operator>(const VideoMode &other) const {
     if (width <= other.width &&
             height <= other.height &&
             frameRate <= other.frameRate &&
+            (!progressive || other.progressive) &&
             (!h264HighProfile || other.h264HighProfile)) {
         return false;
     }

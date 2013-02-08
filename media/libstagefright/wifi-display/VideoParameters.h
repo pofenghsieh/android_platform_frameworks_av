@@ -31,6 +31,7 @@ struct VideoMode : public RefBase {
     int width;
     int height;
     int frameRate;
+    bool progressive;
 
     bool operator==(const VideoMode &other) const;
     bool operator>(const VideoMode &other) const;
@@ -41,6 +42,7 @@ struct SimpleVideoMode {
     int width;
     int height;
     int frameRate;
+    bool progressive;
 };
 
 struct VideoParameters : public RefBase {
