@@ -145,6 +145,8 @@ enum {
     kCommaSpace = ElementaryParser::kCommaSpace,
 };
 
+static const uint32_t kFrameRateChangeSupport = 0x10;
+
 VideoParameters::VideoParameters() {}
 
 VideoParameters::~VideoParameters() {}
@@ -620,6 +622,25 @@ sp<VideoMode> VideoParameters::getBestVideoMode(
     }
     ALOGV("Best video mode %s", bestMode->toString().c_str());
     return bestMode;
+}
+
+bool VideoParameters::getVideoFrameRateChangeSupport(const sp<VideoMode> &videoMode) {
+    bool res = false;
+    if (videoMode == NULL) return res;
+
+    List< sp<H264Codec> >::iterator it = mH264Codecs.begin();
+    while (it != mH264Codecs.end()) {
+        const sp<H264Codec> &codec = *it++;
+        bool profile = codec->profile & kChp ? true : false;
+        int level = kLevelTable[ElementaryParser::getBitIndex(codec->level, kLevelMask)];
+
+        if (profile == videoMode->h264HighProfile && level == videoMode->h264Level) {
+            res = codec->frameRateControl & kFrameRateChangeSupport ? true : false;
+            break;
+        }
+    }
+
+    return res;
 }
 
 VideoMode::VideoMode()

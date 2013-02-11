@@ -77,6 +77,7 @@ public:
     sp<VideoMode> getBestVideoMode(const sp<VideoParameters> &sinkParams,
             const sp<VideoMode> &desiredMode);
     bool isMatchingVideoMode(const sp<VideoMode> &videoMode);
+    bool getVideoFrameRateChangeSupport(const sp<VideoMode> &videoMode);
 
 protected:
     virtual ~VideoParameters();
