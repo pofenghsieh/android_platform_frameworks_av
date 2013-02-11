@@ -94,6 +94,7 @@ void NuPlayer::setDataSource(const sp<IStreamSource> &source) {
 
 #ifdef OMAP_ENHANCEMENT
      mIsWfd = source->flags() & IStreamSource::kFlagWfd;
+     mHighFps = source->flags() & IStreamSource::kFlagHighFps;
 #endif
 
     char prop[PROPERTY_VALUE_MAX];
@@ -732,6 +733,12 @@ status_t NuPlayer::instantiateDecoder(bool audio, sp<Decoder> *decoder) {
     *decoder = audio ? new Decoder(notify) :
                        new Decoder(notify, mNativeWindow);
     looper()->registerHandler(*decoder);
+
+#ifdef OMAP_ENHANCEMENT
+    if (mHighFps && !audio) {
+        format->setInt32("VideoFPS", 60);
+    }
+#endif
 
     (*decoder)->configure(format);
 

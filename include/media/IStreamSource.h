@@ -39,6 +39,7 @@ struct IStreamSource : public IInterface {
         kFlagAlignedVideoData = 1,
 #ifdef OMAP_ENHANCEMENT
         kFlagWfd              = 512,
+        kFlagHighFps          = 1024,
 #endif
     };
     virtual uint32_t flags() const { return 0; }

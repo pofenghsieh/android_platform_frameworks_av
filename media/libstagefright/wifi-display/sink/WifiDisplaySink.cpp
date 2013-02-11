@@ -801,6 +801,11 @@ status_t WifiDisplaySink::sendDescribe(int32_t sessionID, const char *uri) {
 
 status_t WifiDisplaySink::sendSetup(int32_t sessionID, const char *uri) {
     mRTPSink = new RTPSink(mNetSession, mSurfaceTex);
+#ifdef OMAP_ENHANCEMENT
+    if (mVideoMode != NULL) {
+        mRTPSink->setFrameRate(mVideoMode->frameRate);
+    }
+#endif
     looper()->registerHandler(mRTPSink);
 
     status_t err = mRTPSink->init(sUseTCPInterleaving);

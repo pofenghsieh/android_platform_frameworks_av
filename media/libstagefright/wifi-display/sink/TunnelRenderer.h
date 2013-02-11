@@ -40,6 +40,10 @@ struct TunnelRenderer : public AHandler {
 
     sp<ABuffer> dequeueBuffer();
 
+#ifdef OMAP_ENHANCEMENT
+    void setFrameRate(uint32_t frameRate) { mFrameRate = frameRate; };
+#endif
+
     enum {
         kWhatQueueBuffer,
     };
@@ -75,6 +79,7 @@ private:
     bool mRetransmissionEnabled;
     uint32_t mRetransmissionTries;
     bool mRetransmissionSuccess;
+    uint32_t mFrameRate;
 #endif
 
     void initPlayer();

@@ -208,14 +208,22 @@ private:
     status_t setSupportedOutputFormat();
 
     status_t setupVideoDecoder(
+#ifdef OMAP_ENHANCEMENT
+            const char *mime, int32_t width, int32_t height, int32_t fps);
+#else
             const char *mime, int32_t width, int32_t height);
+#endif
 
     status_t setupVideoEncoder(
             const char *mime, const sp<AMessage> &msg);
 
     status_t setVideoFormatOnPort(
             OMX_U32 portIndex,
+#ifdef OMAP_ENHANCEMENT
+            int32_t width, int32_t height, int32_t fps,
+#else
             int32_t width, int32_t height,
+#endif
             OMX_VIDEO_CODINGTYPE compressionFormat);
 
     status_t setupAACCodec(

@@ -968,7 +968,13 @@ status_t ACodec::configureCodec(
                     || !msg->findInt32("height", &height)) {
                 err = INVALID_OPERATION;
             } else {
+#ifdef OMAP_ENHANCEMENT
+                int32_t fps = 0;
+                msg->findInt32("VideoFPS", &fps);
+                err = setupVideoDecoder(mime, width, height, fps);
+#else
                 err = setupVideoDecoder(mime, width, height);
+#endif
             }
         }
     } else if (!strcasecmp(mime, MEDIA_MIMETYPE_AUDIO_AAC)) {
@@ -1485,7 +1491,11 @@ static status_t GetVideoCodingTypeFromMime(
 }
 
 status_t ACodec::setupVideoDecoder(
+#ifdef OMAP_ENHANCEMENT
+        const char *mime, int32_t width, int32_t height, int32_t fps) {
+#else
         const char *mime, int32_t width, int32_t height) {
+#endif
     OMX_VIDEO_CODINGTYPE compressionFormat;
     status_t err = GetVideoCodingTypeFromMime(mime, &compressionFormat);
 
@@ -1507,14 +1517,22 @@ status_t ACodec::setupVideoDecoder(
     }
 
     err = setVideoFormatOnPort(
+#ifdef OMAP_ENHANCEMENT
+            kPortIndexInput, width, height, fps, compressionFormat);
+#else
             kPortIndexInput, width, height, compressionFormat);
+#endif
 
     if (err != OK) {
         return err;
     }
 
     err = setVideoFormatOnPort(
+#ifdef OMAP_ENHANCEMENT
+            kPortIndexOutput, width, height, fps, OMX_VIDEO_CodingUnused);
+#else
             kPortIndexOutput, width, height, OMX_VIDEO_CodingUnused);
+#endif
 
     if (err != OK) {
         return err;
@@ -2101,7 +2119,11 @@ status_t ACodec::setupErrorCorrectionParameters() {
 
 status_t ACodec::setVideoFormatOnPort(
         OMX_U32 portIndex,
+#ifdef OMAP_ENHANCEMENT
+        int32_t width, int32_t height, int32_t fps, OMX_VIDEO_CODINGTYPE compressionFormat) {
+#else
         int32_t width, int32_t height, OMX_VIDEO_CODINGTYPE compressionFormat) {
+#endif
     OMX_PARAM_PORTDEFINITIONTYPE def;
     InitOMXParams(&def);
     def.nPortIndex = portIndex;
@@ -2125,6 +2147,12 @@ status_t ACodec::setVideoFormatOnPort(
 
     video_def->nFrameWidth = width;
     video_def->nFrameHeight = height;
+
+#ifdef OMAP_ENHANCEMENT
+    if (fps > 30 && fps < 120) {
+        video_def->xFramerate = (fps << 16);
+    }
+#endif
 
     if (portIndex == kPortIndexInput) {
         video_def->eCompressionFormat = compressionFormat;

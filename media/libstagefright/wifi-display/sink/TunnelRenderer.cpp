@@ -64,6 +64,10 @@ struct TunnelRenderer::StreamSource : public BnStreamSource {
 
     void doSomeWork();
 
+#ifdef OMAP_ENHANCEMENT
+    void setHighFrameRateFlag() { mHighFrameRate = true; };
+#endif
+
 protected:
     virtual ~StreamSource();
 
@@ -78,6 +82,9 @@ private:
     List<size_t> mIndicesAvailable;
 
     size_t mNumDeqeued;
+#ifdef OMAP_ENHANCEMENT
+    bool mHighFrameRate;
+#endif
 
     DISALLOW_EVIL_CONSTRUCTORS(StreamSource);
 };
@@ -86,7 +93,12 @@ private:
 
 TunnelRenderer::StreamSource::StreamSource(TunnelRenderer *owner)
     : mOwner(owner),
+#ifdef OMAP_ENHANCEMENT
+      mNumDeqeued(0),
+      mHighFrameRate(false) {
+#else
       mNumDeqeued(0) {
+#endif
 }
 
 TunnelRenderer::StreamSource::~StreamSource() {
@@ -115,7 +127,7 @@ void TunnelRenderer::StreamSource::onBufferAvailable(size_t index) {
 
 uint32_t TunnelRenderer::StreamSource::flags() const {
 #ifdef OMAP_ENHANCEMENT
-    return kFlagAlignedVideoData | kFlagWfd;
+    return kFlagAlignedVideoData | kFlagWfd | (mHighFrameRate ? kFlagHighFps : 0);
 #else
     return kFlagAlignedVideoData;
 #endif
@@ -403,6 +415,12 @@ void TunnelRenderer::initPlayer() {
     CHECK(service.get() != NULL);
 
     mStreamSource = new StreamSource(this);
+
+#ifdef OMAP_ENHANCEMENT
+    if (mFrameRate > 30) {
+        mStreamSource->setHighFrameRateFlag();
+    }
+#endif
 
     mPlayerClient = new PlayerClient;
 

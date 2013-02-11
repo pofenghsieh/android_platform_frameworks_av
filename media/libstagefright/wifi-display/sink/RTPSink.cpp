@@ -247,7 +247,12 @@ RTPSink::RTPSink(
       mFirstArrivalTimeUs(-1ll),
       mNumPacketsReceived(0ll),
       mRegression(1000),
+#ifdef OMAP_ENHANCEMENT
+      mMaxDelayMs(-1ll),
+      mFrameRate(30) {
+#else
       mMaxDelayMs(-1ll) {
+#endif
 }
 
 RTPSink::~RTPSink() {
@@ -516,6 +521,9 @@ status_t RTPSink::parseRTP(const sp<ABuffer> &buffer) {
             notifyLost->setInt32("ssrc", srcId);
 
             mRenderer = new TunnelRenderer(notifyLost, mSurfaceTex);
+#ifdef OMAP_ENHANCEMENT
+            mRenderer->setFrameRate(mFrameRate);
+#endif
             looper()->registerHandler(mRenderer);
         }
 

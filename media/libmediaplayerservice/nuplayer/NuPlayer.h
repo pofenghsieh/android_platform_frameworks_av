@@ -152,6 +152,7 @@ private:
 
 #ifdef OMAP_ENHANCEMENT
     bool mIsWfd;
+    bool mHighFps;
 #endif
 
     DISALLOW_EVIL_CONSTRUCTORS(NuPlayer);

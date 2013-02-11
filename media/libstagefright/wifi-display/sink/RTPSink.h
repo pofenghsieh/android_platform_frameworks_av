@@ -49,6 +49,10 @@ struct RTPSink : public AHandler {
 
     status_t injectPacket(bool isRTP, const sp<ABuffer> &buffer);
 
+#ifdef OMAP_ENHANCEMENT
+    void setFrameRate(uint32_t frameRate) { mFrameRate = frameRate; };
+#endif
+
 protected:
     virtual void onMessageReceived(const sp<AMessage> &msg);
     virtual ~RTPSink();
@@ -89,6 +93,10 @@ private:
     void onSendRR();
     void onPacketLost(const sp<AMessage> &msg);
     void scheduleSendRR();
+
+#ifdef OMAP_ENHANCEMENT
+    uint32_t mFrameRate;
+#endif
 
     DISALLOW_EVIL_CONSTRUCTORS(RTPSink);
 };
