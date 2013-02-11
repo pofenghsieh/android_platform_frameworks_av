@@ -26,6 +26,7 @@ LOCAL_SRC_FILES+= \
         UibcParameters.cpp              \
         RtspConfig.cpp                  \
         source/CaptureDevice.cpp        \
+        source/CaptureSource.cpp        \
 
 endif
 
