@@ -28,8 +28,10 @@
 #include "include/avc_utils.h"
 
 #ifdef OMAP_ENHANCEMENT
+#include <cutils/properties.h>
 #include "VideoParameters.h"
 #include "AudioParameters.h"
+#include "CaptureSource.h"
 #endif
 
 #include <binder/IServiceManager.h>
@@ -727,11 +729,21 @@ status_t WifiDisplaySource::PlaybackSession::addVideoSource() {
 
     source->setUseAbsoluteTimestamps();
 
+    char value[PROPERTY_VALUE_MAX];
+    property_get("persist.wfd.writeback", value, "0");
+    bool useCaptureSource = atoi(value) > 0;
+
+    sp<CaptureSource> captureSource;
+    sp<RepeaterSource> videoSource;
+
+    if (useCaptureSource) {
+        captureSource = new CaptureSource(source);
+        videoSource = new RepeaterSource(captureSource, mVideoMode->frameRate);
+    } else {
+        videoSource = new RepeaterSource(source, mVideoMode->frameRate);
+    }
+
     sp<AMessage> format;
-
-    sp<RepeaterSource> videoSource =
-        new RepeaterSource(source, mVideoMode->frameRate);
-
     status_t err = convertMetaDataToMessage(videoSource->getFormat(), &format);
     CHECK_EQ(err, (status_t)OK);
 
@@ -751,7 +763,11 @@ status_t WifiDisplaySource::PlaybackSession::addVideoSource() {
     err = source->setMaxAcquiredBufferCount(numInputBuffers);
     CHECK_EQ(err, (status_t)OK);
 
-    mBufferQueue = source->getBufferQueue();
+    if (useCaptureSource) {
+        mBufferQueue = captureSource->getBufferQueue();
+    } else {
+        mBufferQueue = source->getBufferQueue();
+    }
 
     return OK;
 }
