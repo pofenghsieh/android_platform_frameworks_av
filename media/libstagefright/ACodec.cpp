@@ -48,6 +48,11 @@
 #include <OMX_TI_Index.h>
 #endif
 
+#ifdef OMAP_ENHANCEMENT
+#include <media/AudioParameter.h>
+#include <media/AudioSystem.h>
+#endif
+
 namespace android {
 
 template<class T>
@@ -3627,6 +3632,31 @@ bool ACodec::ExecutingState::onOMXEvent(
         {
             CHECK_EQ(data1, (OMX_U32)kPortIndexOutput);
 
+#ifdef OMAP_ENHANCEMENT
+            OMX_PARAM_PORTDEFINITIONTYPE def;
+            InitOMXParams(&def);
+            def.nPortIndex = kPortIndexOutput;
+            status_t err = mCodec->mOMX->getParameter(
+                    mCodec->mNode, OMX_IndexParamPortDefinition, &def, sizeof(def));
+
+            if (def.eDomain == OMX_PortDomainAudio) {
+                if (def.format.audio.eEncoding == OMX_AUDIO_CodingPCM) {
+                    OMX_AUDIO_PARAM_PCMMODETYPE params;
+                    InitOMXParams(&params);
+                    params.nPortIndex = kPortIndexOutput;
+                    err = mCodec->mOMX->getParameter(
+                            mCodec->mNode, OMX_IndexParamAudioPcm, &params, sizeof(params));
+
+                    uint32_t mapping = 0;
+                    for (int32_t chCounter = 0; chCounter < params.nChannels; chCounter++) {
+                        mapping |= params.eChannelMapping[chCounter] << (4 * chCounter);
+                    }
+                    AudioParameter audioParam = AudioParameter();
+                    audioParam.addInt(String8("channel_map"), mapping);
+                    AudioSystem::setParameters(0, audioParam.toString());
+                }
+            }
+#endif
             if (data2 == 0 || data2 == OMX_IndexParamPortDefinition) {
                 CHECK_EQ(mCodec->mOMX->sendCommand(
                             mCodec->mNode,
