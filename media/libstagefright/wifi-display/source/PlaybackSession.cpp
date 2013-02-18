@@ -773,27 +773,34 @@ status_t WifiDisplaySource::PlaybackSession::addVideoSource() {
 }
 
 status_t WifiDisplaySource::PlaybackSession::addAudioSource() {
-    sp<AudioSource> audioSource = new AudioSource(
-            AUDIO_SOURCE_REMOTE_SUBMIX,
-            mAudioMode->sampleRate,
-            mAudioMode->channelNum);
+    audio_io_handle_t output = AudioSystem::getOutput(AUDIO_STREAM_MUSIC,
+            mAudioMode->sampleRate, AUDIO_FORMAT_PCM_16_BIT,
+            audio_channel_out_mask_from_count(mAudioMode->channelNum),
+            mAudioMode->channelNum > 2 ? AUDIO_OUTPUT_FLAG_DIRECT : AUDIO_OUTPUT_FLAG_NONE);
 
-    if (audioSource->initCheck() == OK) {
-        sp<AMessage> format;
-        status_t err = convertMetaDataToMessage(audioSource->getFormat(), &format);
-        CHECK_EQ(err, (status_t)OK);
-        if (mAudioMode->format == AudioMode::kLpcmAudioFormat) {
-            format->setString("codec", "LPCM");
-        } else if (mAudioMode->format == AudioMode::kAacAudioFormat) {
-            format->setString("codec", "AAC");
-        } else {
-            format->setString("codec", "AC3");
+    if (output) {
+        sp<AudioSource> audioSource = new AudioSource(
+                AUDIO_SOURCE_REMOTE_SUBMIX,
+                mAudioMode->sampleRate,
+                mAudioMode->channelNum);
+
+        if (audioSource->initCheck() == OK) {
+            sp<AMessage> format;
+            status_t err = convertMetaDataToMessage(audioSource->getFormat(), &format);
+            CHECK_EQ(err, (status_t)OK);
+            if (mAudioMode->format == AudioMode::kLpcmAudioFormat) {
+                format->setString("codec", "LPCM");
+            } else if (mAudioMode->format == AudioMode::kAacAudioFormat) {
+                format->setString("codec", "AAC");
+            } else {
+                format->setString("codec", "AC3");
+            }
+            format->setInt32("channels", mAudioMode->channelNum);
+
+            return addSource(
+                    format, audioSource, false /* isRepeaterSource */,
+                    NULL /* numInputBuffers */);
         }
-        format->setInt32("channels", mAudioMode->channelNum);
-
-        return addSource(
-                format, audioSource, false /* isRepeaterSource */,
-                NULL /* numInputBuffers */);
     }
 
     ALOGW("Unable to instantiate audio source");
