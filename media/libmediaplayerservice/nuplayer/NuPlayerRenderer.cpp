@@ -298,9 +298,11 @@ bool NuPlayer::Renderer::onDrainAudioQueue() {
                 }
             } else {
                 mContinuousOverrun = 0;
+                mLastOverrunDetected = 0;
             }
         } else {
             mContinuousOverrun = 0;
+            mLastOverrunDetected = 0;
         }
     }
 #endif
