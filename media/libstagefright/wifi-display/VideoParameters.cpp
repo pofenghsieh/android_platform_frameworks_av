@@ -643,6 +643,46 @@ bool VideoParameters::getVideoFrameRateChangeSupport(const sp<VideoMode> &videoM
     return res;
 }
 
+sp<VideoMode> VideoParameters::getNextVideoMode(
+        const sp<VideoMode> &videoMode, uint32_t parameter, uint32_t dir) {
+    if (videoMode == NULL) return NULL;
+
+    int actualArea = videoMode->width * videoMode->height;
+    int nextArea = dir == kUp ? INT_MAX : 0;
+    sp<VideoMode> nextVideoMode = NULL;
+
+    List< sp<VideoMode> >::iterator it = mMatchingModes.begin();
+    while (it != mMatchingModes.end()) {
+        const sp<VideoMode> &capableMode = *it++;
+        if (capableMode->h264HighProfile != videoMode->h264HighProfile ||
+                capableMode->progressive != videoMode->progressive) {
+            continue;
+        }
+
+        if (parameter == kResolution) {
+            if (capableMode->frameRate != videoMode->frameRate) continue;
+
+            int curArea = capableMode->width * capableMode->height;
+            if ((dir == kUp && curArea > actualArea && curArea < nextArea) ||
+                    (dir == kDown && curArea < actualArea && curArea > nextArea)) {
+                nextArea = curArea;
+                nextVideoMode = capableMode;
+            }
+        } else {
+            if (capableMode->width != videoMode->width ||
+                    capableMode->height != videoMode->height) {
+                continue;
+            }
+
+            if ((dir == kUp && capableMode->frameRate > videoMode->frameRate) ||
+                    (dir == kDown && capableMode->frameRate < videoMode->frameRate)) {
+                nextVideoMode = capableMode;
+            }
+        }
+    }
+    return nextVideoMode;
+}
+
 VideoMode::VideoMode()
     : h264HighProfile(0),
       h264Level(0),

@@ -55,6 +55,17 @@ private:
     };
 
 public:
+
+    enum ChangeVideoParameter {
+        kResolution,
+        kFrameRate,
+    };
+
+    enum ChangeVideoDirection {
+        kUp,
+        kDown,
+    };
+
     // H.264-codec
     struct H264Codec : public LightRefBase<H264Codec> {
         uint32_t profile;
@@ -78,6 +89,8 @@ public:
             const sp<VideoMode> &desiredMode);
     bool isMatchingVideoMode(const sp<VideoMode> &videoMode);
     bool getVideoFrameRateChangeSupport(const sp<VideoMode> &videoMode);
+    sp<VideoMode> getNextVideoMode(const sp<VideoMode> &videoMode,
+            uint32_t parameter, uint32_t dir);
 
 protected:
     virtual ~VideoParameters();
