@@ -64,6 +64,11 @@ WifiDisplaySource::WifiDisplaySource(
       mStopReplyID(0),
       mChosenRTPPort(-1),
       mUsingPCMAudio(false),
+#ifdef OMAP_ENHANCEMENT
+      mPendingAvFormatChange(false),
+      mRequestedByUser(false),
+      mRequestedAvFormatChange(false),
+#endif
       mClientSessionID(0),
       mReaperPending(false),
       mNextCSeq(1),
@@ -114,6 +119,38 @@ status_t WifiDisplaySource::stop() {
 
     return err;
 }
+
+#ifdef OMAP_ENHANCEMENT
+sp<VideoMode> WifiDisplaySource::getCurrentVideoMode() {
+    Mutex::Autolock _l(mLock);
+    return new VideoMode(*mVideoMode.get());
+}
+
+bool WifiDisplaySource::isMatchingVideoMode(const sp<VideoMode> &videoMode) {
+    if (mVideoParams == NULL) return false;
+    return mVideoParams->isMatchingVideoMode(videoMode);
+}
+
+sp<VideoMode> WifiDisplaySource::getNextVideoMode(
+        const sp<VideoMode> &videoMode, uint32_t parameter, uint32_t dir) {
+    if (mVideoParams == NULL) return NULL;
+    return mVideoParams->getNextVideoMode(videoMode, parameter, dir);
+}
+
+void WifiDisplaySource::setVideoMode(const sp<VideoMode> &videoMode, bool byUser) {
+    {
+        Mutex::Autolock _l(mLock);
+        mRequestedVideoMode = new VideoMode(*videoMode.get());
+        mRequestedByUser = byUser;
+        mRequestedAvFormatChange = true;
+    }
+    (new AMessage(kWhatAvFormatChange, id()))->post();
+}
+
+void WifiDisplaySource::setAvFormatChangeListener(const sp<AvFormatChangeListener> &listener) {
+    mAvFormatChangeListener = listener;
+}
+#endif
 
 void WifiDisplaySource::onMessageReceived(const sp<AMessage> &msg) {
     switch (msg->what()) {
@@ -466,6 +503,28 @@ void WifiDisplaySource::onMessageReceived(const sp<AMessage> &msg) {
             break;
         }
 
+#ifdef OMAP_ENHANCEMENT
+        case kWhatAvFormatChange:
+        {
+            if (!mPendingAvFormatChange) {
+                bool requestedByUser = false;
+                {
+                    Mutex::Autolock _l(mLock);
+                    if (mRequestedAvFormatChange) {
+                        mPendingVideoMode = new VideoMode(*mRequestedVideoMode.get());
+                        requestedByUser = mRequestedByUser;
+                        mRequestedAvFormatChange = false;
+                        mPendingAvFormatChange = true;
+                    }
+                }
+                if (mPendingAvFormatChange) {
+                    sendAvFormatChange(mClientSessionID, requestedByUser);
+                }
+            }
+            break;
+        }
+#endif
+
         default:
             TRESPASS();
     }
@@ -669,6 +728,76 @@ status_t WifiDisplaySource::sendM16(int32_t sessionID) {
     return OK;
 }
 
+#ifdef OMAP_ENHANCEMENT
+status_t WifiDisplaySource::sendAvFormatChange(int32_t sessionID, bool requestedByUser) {
+    CHECK_EQ(sessionID, mClientSessionID);
+
+    if (!checkAvFormatChange(requestedByUser)) {
+        if (mAvFormatChangeListener != NULL) {
+            sp<VideoMode> videoMode = new VideoMode(*mPendingVideoMode.get());
+            mAvFormatChangeListener->onError(ERROR_UNSUPPORTED, videoMode);
+        }
+
+        return OK;
+    }
+
+    AString body = StringPrintf(
+        "wfd_video_formats: %s\r\n"
+        "wfd_av_format_change_timing: 0000000000 0000000000\r\n",
+        mVideoParams->generateVideoMode(mPendingVideoMode).c_str());
+
+    AString request = "SET_PARAMETER rtsp://localhost/wfd1.0 RTSP/1.0\r\n";
+    AppendCommonResponse(&request, mNextCSeq);
+
+    request.append("Content-Type: text/parameters\r\n");
+    request.append(StringPrintf("Content-Length: %d\r\n", body.size()));
+    request.append("\r\n");
+    request.append(body);
+
+    status_t err =
+        mNetSession->sendRequest(sessionID, request.c_str(), request.size());
+
+    if (err != OK) return err;
+
+    registerResponseHandler(sessionID, mNextCSeq,
+            &WifiDisplaySource::onReceiveAvFormatChangeResponse);
+
+    ++mNextCSeq;
+
+    return OK;
+}
+
+bool WifiDisplaySource::checkAvFormatChange(bool requestedByUser) {
+    if (mState != PLAYING) {
+        ALOGW("Can't change video mode due to RTSP machine is out of PLAYING state (%d)", mState);
+        return false;
+    }
+
+    if (mVideoMode->h264HighProfile != mPendingVideoMode->h264HighProfile ||
+            mVideoMode->h264Level != mPendingVideoMode->h264Level ||
+            mVideoMode->progressive != mPendingVideoMode->progressive) {
+        ALOGW("Can't change profile or level or progressive/interlaced mode");
+        return false;
+    }
+
+    if (mVideoMode->frameRate != mPendingVideoMode->frameRate &&
+            (mVideoMode->width != mPendingVideoMode->width ||
+            mVideoMode->height != mPendingVideoMode->height)) {
+        ALOGW("Can't change resolution and frame rate at the same time");
+        return false;
+    }
+
+    if (mVideoMode->frameRate != mPendingVideoMode->frameRate) {
+        if (!mVideoParams->getVideoFrameRateChangeSupport(mPendingVideoMode) &&
+                !requestedByUser) {
+            ALOGW("Can't change frame rate due to remote device don't support it without user intervention");
+            return false;
+        }
+    }
+    return true;
+}
+#endif
+
 status_t WifiDisplaySource::onReceiveM1Response(
         int32_t sessionID, const sp<ParsedMessage> &msg) {
     int32_t statusCode;
@@ -758,7 +887,10 @@ status_t WifiDisplaySource::onReceiveM3Response(
     }
 
     if (value == "none") {
-        mVideoMode = NULL;
+        {
+            Mutex::Autolock _l(mLock);
+            mVideoMode = NULL;
+        }
         ALOGD("Sink doesn't support video at all.");
     } else {
         sp<VideoParameters> sinkVideoParams = VideoParameters::parse(value.c_str());
@@ -783,7 +915,11 @@ status_t WifiDisplaySource::onReceiveM3Response(
             desiredVideoMode = NULL;
         }
 
-        mVideoMode = mVideoParams->getBestVideoMode(sinkVideoParams, desiredVideoMode);
+        sp<VideoMode> videoMode = mVideoParams->getBestVideoMode(sinkVideoParams, desiredVideoMode);
+        {
+            Mutex::Autolock _l(mLock);
+            mVideoMode = videoMode;
+        }
         if (mVideoMode == NULL) {
             ALOGE("Source don't have acceptable video mode to sink.");
             return ERROR_UNSUPPORTED;
@@ -964,6 +1100,41 @@ status_t WifiDisplaySource::onReceiveM16Response(
 
     return OK;
 }
+
+#ifdef OMAP_ENHANCEMENT
+status_t WifiDisplaySource::onReceiveAvFormatChangeResponse(
+        int32_t sessionID, const sp<ParsedMessage> &msg) {
+    mPendingAvFormatChange = false;
+
+    int32_t statusCode;
+    if (!msg->getStatusCode(&statusCode)) {
+        return ERROR_MALFORMED;
+    }
+
+    if (statusCode != 200) {
+        if (mAvFormatChangeListener != NULL) {
+            sp<VideoMode> videoMode = new VideoMode(*mRequestedVideoMode.get());
+            mAvFormatChangeListener->onError(ERROR_UNSUPPORTED, videoMode);
+        }
+    } else {
+        {
+            Mutex::Autolock _l(mLock);
+            mVideoMode = mPendingVideoMode;
+        }
+
+        // TODO: reconfigure input pipeline & encoder
+
+        if (mAvFormatChangeListener != NULL) {
+            sp<VideoMode> videoMode = new VideoMode(*mRequestedVideoMode.get());
+            mAvFormatChangeListener->onSuccess(videoMode);
+        }
+    }
+
+    (new AMessage(kWhatAvFormatChange, id()))->post();
+
+    return OK;
+}
+#endif
 
 void WifiDisplaySource::scheduleReaper() {
     if (mReaperPending) {

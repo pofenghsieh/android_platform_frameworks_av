@@ -20,6 +20,10 @@
 
 #include "ANetworkSession.h"
 
+#ifdef OMAP_ENHANCEMENT
+#include "VideoParameters.h"
+#endif
+
 #include <media/stagefright/foundation/AHandler.h>
 
 #include <netinet/in.h>
@@ -30,9 +34,7 @@ struct IHDCP;
 struct IRemoteDisplayClient;
 struct ParsedMessage;
 #ifdef OMAP_ENHANCEMENT
-struct VideoParameters;
 struct AudioParameters;
-struct VideoMode;
 struct AudioMode;
 #endif
 
@@ -41,12 +43,38 @@ struct AudioMode;
 struct WifiDisplaySource : public AHandler {
     static const unsigned kWifiDisplayDefaultPort = 7236;
 
+#ifdef OMAP_ENHANCEMENT
+    struct AvFormatChangeListener : RefBase {
+        virtual void onSuccess(const sp<VideoMode> &videoMode) = 0;
+        virtual void onError(status_t err, const sp<VideoMode> &videoMode) = 0;
+    };
+#endif
+
     WifiDisplaySource(
             const sp<ANetworkSession> &netSession,
             const sp<IRemoteDisplayClient> &client);
 
     status_t start(const char *iface);
     status_t stop();
+
+#ifdef OMAP_ENHANCEMENT
+    enum {
+        kResolution = VideoParameters::kResolution,
+        kFrameRate = VideoParameters::kFrameRate,
+    };
+    enum {
+        kUp = VideoParameters::kUp,
+        kDown = VideoParameters::kDown,
+    };
+
+    sp<VideoMode> getCurrentVideoMode();
+    bool isMatchingVideoMode(const sp<VideoMode> &videoMode);
+    sp<VideoMode> getNextVideoMode(const sp<VideoMode> &videoMode,
+            uint32_t parameter, uint32_t dir);
+
+    void setVideoMode(const sp<VideoMode> &videoMode, bool byUser);
+    void setAvFormatChangeListener(const sp<AvFormatChangeListener> &listener);
+#endif
 
 protected:
     virtual ~WifiDisplaySource();
@@ -78,6 +106,9 @@ private:
         kWhatHDCPNotify,
         kWhatFinishStop2,
         kWhatTeardownTriggerTimedOut,
+#ifdef OMAP_ENHANCEMENT
+        kWhatAvFormatChange,
+#endif
     };
 
     struct ResponseID {
@@ -120,8 +151,18 @@ private:
     bool mUsingPCMAudio;
 
 #ifdef OMAP_ENHANCEMENT
+    sp<AvFormatChangeListener> mAvFormatChangeListener;
+
     sp<VideoParameters> mVideoParams;
     sp<VideoMode> mVideoMode;
+
+    sp<VideoMode> mPendingVideoMode;
+    bool mPendingAvFormatChange;
+
+    mutable Mutex mLock;
+    sp<VideoMode> mRequestedVideoMode;
+    bool mRequestedByUser;
+    bool mRequestedAvFormatChange;
 
     sp<AudioParameters> mAudioParams;
     sp<AudioMode> mAudioMode;
@@ -162,6 +203,10 @@ private:
     status_t sendM4(int32_t sessionID);
     status_t sendM5(int32_t sessionID, bool requestShutdown);
     status_t sendM16(int32_t sessionID);
+#ifdef OMAP_ENHANCEMENT
+    status_t sendAvFormatChange(int32_t sessionID, bool requestedByUser);
+    bool checkAvFormatChange(bool requestedByUser);
+#endif
 
     status_t onReceiveM1Response(
             int32_t sessionID, const sp<ParsedMessage> &msg);
@@ -177,6 +222,11 @@ private:
 
     status_t onReceiveM16Response(
             int32_t sessionID, const sp<ParsedMessage> &msg);
+
+#ifdef OMAP_ENHANCEMENT
+    status_t onReceiveAvFormatChangeResponse(
+        int32_t sessionID, const sp<ParsedMessage> &msg);
+#endif
 
     void registerResponseHandler(
             int32_t sessionID, int32_t cseq, HandleRTSPResponseFunc func);
