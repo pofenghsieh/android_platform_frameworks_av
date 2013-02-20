@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 The Android Open Source Project
+ * Copyright (C) Texas Instruments - http://www.ti.com/
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1200,7 +1200,14 @@ status_t ATSByteParser::parsePID(
 
 void ATSByteParser::parseAdaptationField(ByteReader *br, unsigned PID) {
     size_t adaptation_field_length = br->getByte() + 1;
-    br->skipBytes(adaptation_field_length);
+    if (adaptation_field_length > 0) {
+        br->skipBytes(1);
+        unsigned discontinuity = ((br->getByte()) & 0x80);
+        if (discontinuity) {
+            signalDiscontinuity(ATSParser::DISCONTINUITY_FORMATCHANGE, NULL);
+        }
+        br->skipBytes(adaptation_field_length - 1);
+    }
 }
 
 status_t ATSByteParser::parseTS(ByteReader *br) {
