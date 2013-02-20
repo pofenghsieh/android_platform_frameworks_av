@@ -76,7 +76,12 @@ WifiDisplaySource::WifiDisplaySource(
       mIsHDCP2_0(false),
       mHDCPPort(0),
       mHDCPInitializationComplete(false),
+#ifdef OMAP_ENHANCEMENT
+      mSetupTriggerDeferred(false),
+      mReconfigPending(false)
+#else
       mSetupTriggerDeferred(false)
+#endif
 {
 }
 
@@ -457,7 +462,16 @@ void WifiDisplaySource::onMessageReceived(const sp<AMessage> &msg) {
                     mState = PLAYING;
                 }
             } else if (what == PlaybackSession::kWhatSessionDestroyed) {
+#ifdef OMAP_ENHANCEMENT
+                if (mReconfigPending) {
+                    mReconfigPending = false;
+                    sessionRecreate();
+                } else {
+                    disconnectClient2();
+                }
+#else
                 disconnectClient2();
+#endif
             } else {
                 CHECK_EQ(what, PlaybackSession::kWhatBinaryData);
 
@@ -1460,6 +1474,11 @@ status_t WifiDisplaySource::onSetupRequest(
         return ERROR_MALFORMED;
     }
 
+#ifdef OMAP_ENHANCEMENT
+    mClientRtp = clientRtp;
+    mClientRtcp = clientRtcp;
+#endif
+
     status_t err = playbackSession->init(
             mClientInfo.mRemoteIP.c_str(),
             clientRtp,
@@ -1901,6 +1920,52 @@ status_t WifiDisplaySource::makeHDCP() {
 
     return OK;
 }
+
+#ifdef OMAP_ENHANCEMENT
+void WifiDisplaySource::sessionRecreate() {
+    looper()->unregisterHandler(mClientInfo.mPlaybackSession->id());
+    mClientInfo.mPlaybackSession.clear();
+
+    mClient->onDisplayDisconnected();
+
+    int32_t playbackSessionID = makeUniquePlaybackSessionID();
+    sp<AMessage> notify = new AMessage(kWhatPlaybackSessionNotify, id());
+    notify->setInt32("playbackSessionID", playbackSessionID);
+    notify->setInt32("sessionID", mClientSessionID);
+
+    sp<PlaybackSession> playbackSession =
+        new PlaybackSession(
+            mNetSession, notify, mInterfaceAddr, mHDCP);
+
+    mClientInfo.mPlaybackSessionID = playbackSessionID;
+    mClientInfo.mPlaybackSession = playbackSession;
+
+    looper()->registerHandler(playbackSession);
+
+    status_t err = playbackSession->init(
+        mClientInfo.mRemoteIP.c_str(),
+        mClientRtp,
+        mClientRtcp,
+        Sender::TRANSPORT_UDP,
+        mVideoMode,
+        mAudioMode);
+
+    if (err != OK) {
+        looper()->unregisterHandler(playbackSession->id());
+        playbackSession.clear();
+        ALOGD("playbackSession init error");
+        return;
+    }
+
+    playbackSession->play();
+    playbackSession->finishPlay();
+}
+
+void WifiDisplaySource::reconfigure() {
+    mReconfigPending = true;
+    mClientInfo.mPlaybackSession->destroyAsync();
+}
+#endif
 
 }  // namespace android
 

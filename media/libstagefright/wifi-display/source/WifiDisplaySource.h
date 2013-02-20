@@ -176,6 +176,9 @@ private:
 
     sp<AudioParameters> mAudioParams;
     sp<AudioMode> mAudioMode;
+
+    int mClientRtp, mClientRtcp;
+    bool mReconfigPending;
 #endif
 
     int32_t mClientSessionID;
@@ -309,6 +312,11 @@ private:
     void disconnectClient2();
     void finishStopAfterDisconnectingClient();
     void finishStop2();
+
+#ifdef OMAP_ENHANCEMENT
+    void reconfigure();
+    void sessionRecreate();
+#endif
 
     DISALLOW_EVIL_CONSTRUCTORS(WifiDisplaySource);
 };
