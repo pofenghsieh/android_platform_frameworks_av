@@ -3888,7 +3888,16 @@ AudioFlinger::PlaybackThread::mixer_state AudioFlinger::DirectOutputThread::prep
             }
 
             // reset retry count
+#ifdef OMAP_ENHANCEMENT
+            // NuPlayer can use direct thread as well to play WiFi stream.
+            // kMaxTrackRetriesDirect = 2 is too few to override occasional stream
+            // discontinuities. Will use common retry number.
+            // TODO: possibly, NuPlayer should somehow be notified and can restore
+            // output thread by itself.
+            track->mRetryCount = kMaxTrackRetries;
+#else
             track->mRetryCount = kMaxTrackRetriesDirect;
+#endif
             mActiveTrack = t;
             mixerStatus = MIXER_TRACKS_READY;
         } else {
