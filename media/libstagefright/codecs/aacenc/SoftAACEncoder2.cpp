@@ -326,6 +326,15 @@ status_t SoftAACEncoder2::setAudioParams() {
         ALOGE("Failed to set AAC encoder parameters");
         return UNKNOWN_ERROR;
     }
+#ifdef OMAP_ENHANCEMENT
+    if (mNumChannels == 6) {
+        // 1: WAVE file format channel ordering (see aacenc_lib.h)
+        if (AACENC_OK != aacEncoder_SetParam(mAACEncoder, AACENC_CHANNELORDER, 1)) {
+            ALOGE("Failed to set AAC encoder parameters");
+            return UNKNOWN_ERROR;
+        }
+    }
+#endif
     if (AACENC_OK != aacEncoder_SetParam(mAACEncoder, AACENC_TRANSMUX, TT_MP4_RAW)) {
         ALOGE("Failed to set AAC encoder parameters");
         return UNKNOWN_ERROR;
