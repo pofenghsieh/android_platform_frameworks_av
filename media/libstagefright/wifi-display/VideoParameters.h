@@ -33,6 +33,8 @@ struct VideoMode : public RefBase {
     int frameRate;
     bool progressive;
 
+    VideoMode();
+    VideoMode(const VideoMode &videoMode);
     bool operator==(const VideoMode &other) const;
     bool operator>(const VideoMode &other) const;
     AString toString();

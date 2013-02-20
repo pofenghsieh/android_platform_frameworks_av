@@ -614,6 +614,25 @@ sp<VideoMode> VideoParameters::getBestVideoMode(
     return bestMode;
 }
 
+VideoMode::VideoMode()
+    : h264HighProfile(0),
+      h264Level(0),
+      width(0),
+      height(0),
+      frameRate(0),
+      progressive(true) {
+}
+
+VideoMode::VideoMode(const VideoMode &videoMode)
+    : RefBase(),
+      h264HighProfile(videoMode.h264HighProfile),
+      h264Level(videoMode.h264Level),
+      width(videoMode.width),
+      height(videoMode.height),
+      frameRate(videoMode.frameRate),
+      progressive(videoMode.progressive) {
+}
+
 AString VideoMode::toString() {
     AString str;
     if (h264HighProfile) {
