@@ -191,6 +191,12 @@ private:
             const sp<ParsedMessage> &data);
 
 #ifdef OMAP_ENHANCEMENT
+    status_t checkAvFormatChange(
+            int32_t sessionID,
+            int32_t cseq,
+            const sp<VideoMode> &videoMode,
+            const sp<AudioMode> &audioMode);
+
     const char *getSetupURI();
     void sendOK(int32_t sessionID, int32_t cseq);
 

@@ -40,6 +40,9 @@ namespace android {
 const char kDefaultVideoCapabilities[] =
         "00 00 01 01 0001ffff 3fffffff 00000fff 00 0000 0000 00 none none";
 const char kDefaultAudioCapabilities[] = "LPCM 00000003 00, AAC 00000001 00";
+
+static const char kErr458[] = "458 A responder cannot update a requested"
+        "parameter because it is not allowed in this Specification";
 #endif
 
 WifiDisplaySink::WifiDisplaySink(
@@ -947,25 +950,36 @@ void WifiDisplaySink::onSetParameterRequest(
 
     AString body;
 
+    bool avFormatChange = false;
+    params->findParameter("wfd_av_format_change_timing", &parameter);
+    if (!parameter.empty()) {
+        avFormatChange = true;
+        // Now we don't care about values PTS & DTS from source side.
+        // Pipeline will wait for discontinuity bit into MPEG2TS to
+        // reconfigure decoder.
+    }
+
+    sp<VideoMode> videoMode;
     params->findParameter("wfd_video_formats", &parameter);
     if (!parameter.empty()) {
         if (parameter == "none") {
-            mVideoMode = NULL;
+            videoMode = NULL;
         } else {
-            mVideoMode = mVideoParams->applyVideoMode(parameter.c_str());
-            if (mVideoMode == NULL) {
+            videoMode = mVideoParams->applyVideoMode(parameter.c_str());
+            if (videoMode == NULL) {
                 body.append("wfd_video_formats: 415\r\n");
             }
         }
     }
 
+    sp<AudioMode> audioMode;
     params->findParameter("wfd_audio_codecs", &parameter);
     if (!parameter.empty()) {
         if (parameter == "none") {
-            mAudioMode = NULL;
+            audioMode = NULL;
         } else {
-            mAudioMode = mAudioParams->applyAudioMode(parameter.c_str());
-            if (mAudioMode == NULL) {
+            audioMode = mAudioParams->applyAudioMode(parameter.c_str());
+            if (audioMode == NULL) {
                 body.append("wfd_audio_codecs: 415\r\n");
             }
         }
@@ -980,6 +994,14 @@ void WifiDisplaySink::onSetParameterRequest(
     }
 
     if (!body.empty()) {
+        if (videoMode != NULL) {
+            mVideoMode = videoMode;
+        }
+
+        if (audioMode != NULL) {
+            mAudioMode = audioMode;
+        }
+
         AString response = "RTSP/1.0 303 See Other\r\n";
         AppendCommonResponse(&response, cseq);
         response.append("Content-Type: text/parameters\r\n");
@@ -990,9 +1012,67 @@ void WifiDisplaySink::onSetParameterRequest(
         status_t err = mNetSession->sendRequest(sessionID, response.c_str());
         CHECK_EQ(err, (status_t)OK);
     } else {
+        if (avFormatChange) {
+            if (checkAvFormatChange(sessionID, cseq, videoMode, audioMode) != OK) {
+                return;
+            }
+        } else {
+            mVideoMode = videoMode;
+            mAudioMode = audioMode;
+        }
+
         sendOK(sessionID, cseq);
-        ALOGD("SETUP %s %s", mVideoMode->toString().c_str(), mAudioMode->toString().c_str());
+        ALOGD("SETUP %s %s", mVideoMode == NULL ? "NULL" : mVideoMode->toString().c_str(),
+                mAudioMode == NULL ? "NULL" : mAudioMode->toString().c_str());
     }
+}
+
+status_t WifiDisplaySink::checkAvFormatChange(
+        int32_t sessionID,
+        int32_t cseq,
+        const sp<VideoMode> &videoMode,
+        const sp<AudioMode> &audioMode) {
+    if (mState != PLAYING) {
+        ALOGW("AV format change request received in time of RTSP machine"
+                "is out of PLAYING state (%d)", mState);
+        sendErrorResponse(sessionID, "405 Method Not Allowed", cseq);
+        return ERROR_UNSUPPORTED;
+    }
+
+    if (audioMode != NULL && (mAudioMode == NULL ||
+            !(*mAudioMode.get() == *audioMode.get()))) {
+        ALOGW("AV format change request received with changed audio mode");
+        sendErrorResponse(sessionID, kErr458, cseq);
+        return ERROR_UNSUPPORTED;
+    }
+
+    if (videoMode == NULL || mVideoMode == NULL) {
+        ALOGW("AV format change request can't be applied due to new or"
+                "previous video mode is absent");
+        sendErrorResponse(sessionID, kErr458, cseq);
+        return ERROR_UNSUPPORTED;
+    }
+
+    if (videoMode->h264HighProfile != mVideoMode->h264HighProfile ||
+            videoMode->h264Level != mVideoMode->h264Level ||
+            videoMode->progressive != mVideoMode->progressive) {
+        ALOGW("AV format change request tried to change profile or level"
+                "or progressive/interlaced mode");
+        sendErrorResponse(sessionID, kErr458, cseq);
+        return ERROR_UNSUPPORTED;
+    }
+
+    if (videoMode->frameRate != mVideoMode->frameRate &&
+            (videoMode->width != mVideoMode->width ||
+            videoMode->height != mVideoMode->height)) {
+        ALOGW("AV format change request tried to change resolution and "
+                "frameRate at the same time");
+        sendErrorResponse(sessionID, kErr458, cseq);
+        return ERROR_UNSUPPORTED;
+    }
+
+    mVideoMode = videoMode;
+    return OK;
 }
 #else
 status_t WifiDisplaySink::sendPlay(int32_t sessionID, const char *uri) {
