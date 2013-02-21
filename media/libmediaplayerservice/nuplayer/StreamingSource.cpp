@@ -131,12 +131,30 @@ status_t NuPlayer::StreamingSource::feedMoreTSData() {
             if (buffer[0] == 0x00) {
 #endif
                 // XXX legacy
-                mTSParser->signalDiscontinuity(
+
+                if (extra == NULL) {
+                    extra = new AMessage;
+                }
+
 #ifdef OMAP_ENHANCEMENT
-                        mBuffer->data()[1] == 0x00
+                uint8_t type = mBuffer->data()[1];
 #else
-                        buffer[1] == 0x00
+                uint8_t type = buffer[1];
 #endif
+
+                if (type & 2) {
+                    int64_t mediaTimeUs;
+#ifdef OMAP_ENHANCEMENT
+                    memcpy(&mediaTimeUs, &mBuffer->data()[2], sizeof(mediaTimeUs));
+#else
+                    memcpy(&mediaTimeUs, &buffer[2], sizeof(mediaTimeUs));
+#endif
+
+                    extra->setInt64(IStreamListener::kKeyMediaTimeUs, mediaTimeUs);
+                }
+
+                mTSParser->signalDiscontinuity(
+                        ((type & 1) == 0)
                             ? ATSParser::DISCONTINUITY_SEEK
                             : ATSParser::DISCONTINUITY_FORMATCHANGE,
                         extra);
@@ -215,6 +233,10 @@ status_t NuPlayer::StreamingSource::dequeueAccessUnit(
 #endif
 
     return err;
+}
+
+uint32_t NuPlayer::StreamingSource::flags() const {
+    return 0;
 }
 
 }  // namespace android

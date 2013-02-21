@@ -17,6 +17,7 @@ LOCAL_SRC_FILES:= \
         source/Sender.cpp               \
         source/TSPacketizer.cpp         \
         source/WifiDisplaySource.cpp    \
+        TimeSeries.cpp                  \
 
 ifeq ($(OMAP_ENHANCEMENT), true)
 LOCAL_SRC_FILES+= \
