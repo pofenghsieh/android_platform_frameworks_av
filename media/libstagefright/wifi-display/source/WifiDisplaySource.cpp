@@ -1219,7 +1219,7 @@ status_t WifiDisplaySource::onReceiveAvFormatChangeResponse(
             mVideoMode = mPendingVideoMode;
         }
 
-        // TODO: reconfigure input pipeline & encoder
+        reconfigure();
 
         if (mAvFormatChangeListener != NULL) {
             sp<VideoMode> videoMode = new VideoMode(*mRequestedVideoMode.get());
