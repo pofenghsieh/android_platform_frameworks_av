@@ -33,17 +33,19 @@ struct MediaCodec;
 // media access unit of a different format.
 // Right now this'll convert raw video into H.264 and raw audio into AAC.
 struct Converter : public AHandler {
+#ifndef OMAP_ENHANCEMENT
     Converter(
             const sp<AMessage> &notify,
             const sp<ALooper> &codecLooper,
             const sp<AMessage> &format,
             bool usePCMAudio);
 
-#ifdef OMAP_ENHANCEMENT
+#else
     Converter(
             const sp<AMessage> &notify,
             const sp<ALooper> &codecLooper,
-            const sp<AMessage> &format);
+            const sp<AMessage> &format,
+            bool discontinuityQueued);
 #endif
 
     status_t initCheck() const;
@@ -109,6 +111,7 @@ private:
 
 #ifdef OMAP_ENHANCEMENT
     int32_t mChannelCount;
+    bool mDiscontinuityQueued;
 #endif
 
     status_t initEncoder();

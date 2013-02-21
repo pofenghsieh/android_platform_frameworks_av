@@ -337,7 +337,12 @@ WifiDisplaySource::PlaybackSession::PlaybackSession(
         const sp<ANetworkSession> &netSession,
         const sp<AMessage> &notify,
         const in_addr &interfaceAddr,
+#ifdef OMAP_ENHANCEMENT
+        const sp<IHDCP> &hdcp,
+        bool recreated)
+#else
         const sp<IHDCP> &hdcp)
+#endif
     : mNetSession(netSession),
       mNotify(notify),
       mInterfaceAddr(interfaceAddr),
@@ -347,7 +352,12 @@ WifiDisplaySource::PlaybackSession::PlaybackSession(
       mLastLifesignUs(),
       mVideoTrackIndex(-1),
       mPrevTimeUs(-1ll),
+#ifdef OMAP_ENHANCEMENT
+      mAllTracksHavePacketizerIndex(false),
+      mRecreated(recreated) {
+#else
       mAllTracksHavePacketizerIndex(false) {
+#endif
 }
 
 status_t WifiDisplaySource::PlaybackSession::init(
@@ -735,7 +745,7 @@ status_t WifiDisplaySource::PlaybackSession::addSource(
 
     sp<Converter> converter =
 #ifdef OMAP_ENHANCEMENT
-        new Converter(notify, codecLooper, format);
+        new Converter(notify, codecLooper, format, mRecreated);
 #else
         new Converter(notify, codecLooper, format, usePCMAudio);
 #endif

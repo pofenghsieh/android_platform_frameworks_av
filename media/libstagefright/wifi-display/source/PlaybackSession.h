@@ -42,7 +42,12 @@ struct WifiDisplaySource::PlaybackSession : public AHandler {
             const sp<ANetworkSession> &netSession,
             const sp<AMessage> &notify,
             const struct in_addr &interfaceAddr,
+#ifdef OMAP_ENHANCEMENT
+            const sp<IHDCP> &hdcp,
+            bool recreated);
+#else
             const sp<IHDCP> &hdcp);
+#endif
 
 #ifdef OMAP_ENHANCEMENT
     status_t init(
@@ -124,6 +129,8 @@ private:
 #ifdef OMAP_ENHANCEMENT
     sp<VideoMode> mVideoMode;
     sp<AudioMode> mAudioMode;
+
+    const bool mRecreated;
 
     status_t setupPacketizer();
 

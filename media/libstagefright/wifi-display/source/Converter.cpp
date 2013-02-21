@@ -37,6 +37,7 @@
 
 namespace android {
 
+#ifndef OMAP_ENHANCEMENT
 Converter::Converter(
         const sp<AMessage> &notify,
         const sp<ALooper> &codecLooper,
@@ -74,18 +75,21 @@ Converter::Converter(
     }
 }
 
-#ifdef OMAP_ENHANCEMENT
+#else
 Converter::Converter(
         const sp<AMessage> &notify,
         const sp<ALooper> &codecLooper,
-        const sp<AMessage> &format)
+        const sp<AMessage> &format,
+        bool discontinuityQueued)
     : mInitCheck(NO_INIT),
       mNotify(notify),
       mCodecLooper(codecLooper),
       mInputFormat(format),
       mIsVideo(false),
       mIsPCMAudio(false),
-      mDoMoreWorkPending(false)
+      mNeedToManuallyPrependSPSPPS(false),
+      mDoMoreWorkPending(false),
+      mDiscontinuityQueued(discontinuityQueued)
 #if ENABLE_SILENCE_DETECTION
       ,mFirstSilentFrameUs(-1ll)
       ,mInSilentMode(false)
@@ -706,6 +710,13 @@ status_t Converter::doMoreWork() {
 #endif
             } else {
                 sp<AMessage> notify = mNotify->dup();
+
+#ifdef OMAP_ENHANCEMENT
+                if (mIsVideo && mDiscontinuityQueued) {
+                    mDiscontinuityQueued = false;
+                    buffer->meta()->setInt32("discontinuity", 1);
+                }
+#endif
                 notify->setInt32("what", kWhatAccessUnit);
                 notify->setBuffer("accessUnit", buffer);
                 notify->post();

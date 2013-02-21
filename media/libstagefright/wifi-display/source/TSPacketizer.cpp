@@ -498,6 +498,8 @@ status_t TSPacketizer::packetize(
     if (accessUnit->meta()->findInt32("csd", &is_csd) && is_csd) {
         buffer->meta()->setInt32("csd", 1);
     }
+    int32_t discontinuity = 0;
+    accessUnit->meta()->findInt32("discontinuity", &discontinuity);
 #endif
 
     uint8_t *packetDataStart = buffer->data();
@@ -732,7 +734,11 @@ status_t TSPacketizer::packetize(
     *ptr++ = 0x47;
     *ptr++ = 0x40 | (track->PID() >> 8);
     *ptr++ = track->PID() & 0xff;
+#ifdef OMAP_ENHANCEMENT
+    *ptr++ = ((padding || discontinuity) ? 0x30 : 0x10) | track->incrementContinuityCounter();
+#else
     *ptr++ = (padding ? 0x30 : 0x10) | track->incrementContinuityCounter();
+#endif
 
     if (padding) {
         size_t paddingSize = 188 - 10 - PES_packet_length;
@@ -743,6 +749,13 @@ status_t TSPacketizer::packetize(
             ptr += paddingSize - 2;
         }
     }
+
+#ifdef OMAP_ENHANCEMENT
+    if (discontinuity) {
+        *ptr++ = 0x01; // adaptation_field_length
+        *ptr++ = 0x80; // discontinuity bit
+    }
+#endif
 
     *ptr++ = 0x00;
     *ptr++ = 0x00;

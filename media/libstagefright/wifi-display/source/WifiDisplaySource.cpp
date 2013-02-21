@@ -1457,7 +1457,11 @@ status_t WifiDisplaySource::onSetupRequest(
 
     sp<PlaybackSession> playbackSession =
         new PlaybackSession(
+#ifdef OMAP_ENHANCEMENT
+                mNetSession, notify, mInterfaceAddr, mHDCP, false);
+#else
                 mNetSession, notify, mInterfaceAddr, mHDCP);
+#endif
 
     looper()->registerHandler(playbackSession);
 
@@ -1935,7 +1939,7 @@ void WifiDisplaySource::sessionRecreate() {
 
     sp<PlaybackSession> playbackSession =
         new PlaybackSession(
-            mNetSession, notify, mInterfaceAddr, mHDCP);
+            mNetSession, notify, mInterfaceAddr, mHDCP, true);
 
     mClientInfo.mPlaybackSessionID = playbackSessionID;
     mClientInfo.mPlaybackSession = playbackSession;
