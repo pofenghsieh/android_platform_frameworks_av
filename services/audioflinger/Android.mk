@@ -116,6 +116,17 @@ LOCAL_SHARED_LIBRARIES := \
     libcutils \
     libutils
 
+ifeq ($(OMAP_ENHANCEMENT), true)
+LOCAL_C_INCLUDES += \
+	external/speex/include
+
+LOCAL_SRC_FILES += \
+	AudioResamplerSpeex.cpp.arm
+
+LOCAL_SHARED_LIBRARIES += \
+	libspeexresampler
+endif
+
 LOCAL_MODULE:= test-resample
 
 LOCAL_MODULE_TAGS := optional
