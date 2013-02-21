@@ -38,6 +38,10 @@ static const int32_t kMaxRetrasmissionTries = 2;
 
 namespace android {
 
+#ifdef OMAP_ENHANCEMENT
+static const int32_t kMinSamplesLostToRestore = 20000;
+#endif
+
 struct TunnelRenderer::PlayerClient : public BnMediaPlayerClient {
     PlayerClient() {}
 
@@ -84,6 +88,7 @@ private:
     size_t mNumDeqeued;
 #ifdef OMAP_ENHANCEMENT
     bool mHighFrameRate;
+    int32_t mLastRtpTime;
 #endif
 
     DISALLOW_EVIL_CONSTRUCTORS(StreamSource);
@@ -95,6 +100,7 @@ TunnelRenderer::StreamSource::StreamSource(TunnelRenderer *owner)
     : mOwner(owner),
 #ifdef OMAP_ENHANCEMENT
       mNumDeqeued(0),
+      mLastRtpTime(0),
       mHighFrameRate(false) {
 #else
       mNumDeqeued(0) {
@@ -143,6 +149,34 @@ void TunnelRenderer::StreamSource::doSomeWork() {
         }
 
         ++mNumDeqeued;
+
+#ifdef OMAP_ENHANCEMENT
+        bool queueDiscontinuity = false;
+        int32_t rtpTime = 0;
+        srcBuffer->meta()->findInt32("rtp-time", &rtpTime);
+
+        if ((rtpTime - mLastRtpTime) > kMinSamplesLostToRestore) {
+            queueDiscontinuity = true;
+        }
+        mLastRtpTime = rtpTime;
+
+        if (queueDiscontinuity && (mNumDeqeued != 1)) {
+            ALOGI("Discontinuity caught.");
+
+            sp<AMessage> extra = new AMessage;
+
+            extra->setInt32(
+                    IStreamListener::kKeyDiscontinuityMask,
+                    ATSParser::DISCONTINUITY_FORMATCHANGE);
+
+            extra->setInt64("timeUs", ALooper::GetNowUs());
+
+            mListener->issueCommand(
+                    IStreamListener::DISCONTINUITY,
+                    false /* synchronous */,
+                    extra);
+        }
+#endif
 
         if (mNumDeqeued == 1) {
             ALOGI("fixing real time now.");
