@@ -786,7 +786,7 @@ status_t WifiDisplaySource::PlaybackSession::addVideoSource() {
     source->setUseAbsoluteTimestamps();
 
     char value[PROPERTY_VALUE_MAX];
-    property_get("persist.wfd.writeback", value, "0");
+    property_get("persist.wfd.writeback", value, "1");
     bool useCaptureSource = atoi(value) > 0;
 
     sp<CaptureSource> captureSource;
