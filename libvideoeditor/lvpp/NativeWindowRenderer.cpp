@@ -570,10 +570,17 @@ RenderInput::RenderInput(NativeWindowRenderer* renderer, GLuint textureId)
     , mTextureId(textureId) {
     mST = new SurfaceTexture(mTextureId);
     mSTC = new SurfaceTextureClient(mST);
+#ifdef OMAP_ENHANCEMENT
+    native_window_api_connect(mSTC.get(), NATIVE_WINDOW_API_MEDIA);
+#else
     native_window_connect(mSTC.get(), NATIVE_WINDOW_API_MEDIA);
+#endif
 }
 
 RenderInput::~RenderInput() {
+#ifdef OMAP_ENHANCEMENT
+    native_window_api_disconnect(mSTC.get(), NATIVE_WINDOW_API_MEDIA);
+#endif
 }
 
 ANativeWindow* RenderInput::getTargetWindow() {
