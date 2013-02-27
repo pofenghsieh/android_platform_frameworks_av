@@ -697,6 +697,13 @@ status_t Converter::doMoreWork() {
                    mEncoderOutputBuffers.itemAt(bufferIndex)->base() + offset,
                    size);
 
+#ifdef OMAP_ENHANCEMENT
+            if (mIsVideo && mDiscontinuityQueued) {
+                mDiscontinuityQueued = false;
+                buffer->meta()->setInt32("discontinuity", 1);
+            }
+#endif
+
             if (flags & MediaCodec::BUFFER_FLAG_CODECCONFIG) {
                 mOutputFormat->setBuffer("csd-0", buffer);
 #ifdef OMAP_ENHANCEMENT
@@ -711,12 +718,6 @@ status_t Converter::doMoreWork() {
             } else {
                 sp<AMessage> notify = mNotify->dup();
 
-#ifdef OMAP_ENHANCEMENT
-                if (mIsVideo && mDiscontinuityQueued) {
-                    mDiscontinuityQueued = false;
-                    buffer->meta()->setInt32("discontinuity", 1);
-                }
-#endif
                 notify->setInt32("what", kWhatAccessUnit);
                 notify->setBuffer("accessUnit", buffer);
                 notify->post();

@@ -720,7 +720,11 @@ status_t TSPacketizer::packetize(
 
     uint64_t PTS = (timeUs * 9ll) / 100ll;
 
+#ifdef OMAP_ENHANCEMENT
+    bool padding = (PES_packet_length < (188 - 10 - (discontinuity ? 2 : 0)));
+#else
     bool padding = (PES_packet_length < (188 - 10));
+#endif
 
     if (PES_packet_length >= 65536) {
         // This really should only happen for video.
@@ -744,14 +748,18 @@ status_t TSPacketizer::packetize(
         size_t paddingSize = 188 - 10 - PES_packet_length;
         *ptr++ = paddingSize - 1;
         if (paddingSize >= 2) {
+#ifdef OMAP_ENHANCEMENT
+            *ptr++ = discontinuity ? 0x80 : 0x00;
+#else
             *ptr++ = 0x00;
+#endif
             memset(ptr, 0xff, paddingSize - 2);
             ptr += paddingSize - 2;
         }
     }
 
 #ifdef OMAP_ENHANCEMENT
-    if (discontinuity) {
+    else if (discontinuity) {
         *ptr++ = 0x01; // adaptation_field_length
         *ptr++ = 0x80; // discontinuity bit
     }
