@@ -405,6 +405,7 @@ void CaptureSource::dequeueCaptureDeviceBuffer_l(const sp<AMessage> &msg, int *i
     CHECK(slot->mBufferState == BufferSlot::QUEUED_TO_CD);
 
     slot->mBufferState = BufferSlot::DEQUEUED_FROM_CD;
+    slot->mTimestamp = systemTime(SYSTEM_TIME_MONOTONIC);
 }
 
 status_t CaptureSource::queueCaptureDeviceBuffer_l(int index) {
