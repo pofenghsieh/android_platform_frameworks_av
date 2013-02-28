@@ -1926,8 +1926,6 @@ void WifiDisplaySource::sessionRecreate() {
     looper()->unregisterHandler(mClientInfo.mPlaybackSession->id());
     mClientInfo.mPlaybackSession.clear();
 
-    mClient->onDisplayDisconnected();
-
     int32_t playbackSessionID = makeUniquePlaybackSessionID();
     sp<AMessage> notify = new AMessage(kWhatPlaybackSessionNotify, id());
     notify->setInt32("playbackSessionID", playbackSessionID);
@@ -1963,6 +1961,7 @@ void WifiDisplaySource::sessionRecreate() {
 
 void WifiDisplaySource::reconfigure() {
     mReconfigPending = true;
+    mClient->onDisplayDisconnected();
     mClientInfo.mPlaybackSession->destroyAsync();
 }
 #endif
