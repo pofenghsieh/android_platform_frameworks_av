@@ -820,7 +820,13 @@ void Sender::onDrainQueue(const sp<ABuffer> &udpPackets) {
             notify->setBuffer("data", data);
             notify->post();
         } else {
+#ifdef OMAP_ENHANCEMENT
+            sp<ABuffer> data = new ABuffer(rtpPacketSize);
+            memcpy(data->data(), rtp, rtpPacketSize);
+            mNetSession->sendDatagram(mRTPSessionID, data);
+#else
             sendPacket(mRTPSessionID, rtp, rtpPacketSize);
+#endif
 
 #if TRACK_BANDWIDTH
             mTotalBytesSent += rtpPacketSize->size();

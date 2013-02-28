@@ -81,6 +81,10 @@ struct ANetworkSession::Session : public RefBase {
 
     status_t sendRequest(const void *data, ssize_t size);
 
+#ifdef OMAP_ENHANCEMENT
+    status_t sendDatagram(const sp<ABuffer> datagram);
+#endif
+
     void setIsRTSPConnection(bool yesno);
 
 protected:
@@ -536,6 +540,16 @@ status_t ANetworkSession::Session::sendRequest(const void *data, ssize_t size) {
     return OK;
 }
 
+#ifdef OMAP_ENHANCEMENT
+status_t ANetworkSession::Session::sendDatagram(const sp<ABuffer> datagram) {
+    CHECK(mState == DATAGRAM);
+
+    mOutDatagrams.push_back(datagram);
+
+    return OK;
+}
+#endif
+
 void ANetworkSession::Session::notifyError(
         bool send, status_t err, const char *detail) {
     sp<AMessage> msg = mNotify->dup();
@@ -963,6 +977,26 @@ status_t ANetworkSession::sendRequest(
 
     return err;
 }
+
+#ifdef OMAP_ENHANCEMENT
+status_t ANetworkSession::sendDatagram(int32_t sessionID, const sp<ABuffer> datagram) {
+    Mutex::Autolock autoLock(mLock);
+
+    ssize_t index = mSessions.indexOfKey(sessionID);
+
+    if (index < 0) {
+        return -ENOENT;
+    }
+
+    const sp<Session> session = mSessions.valueAt(index);
+
+    status_t err = session->sendDatagram(datagram);
+
+    interrupt();
+
+    return err;
+}
+#endif
 
 void ANetworkSession::interrupt() {
     static const char dummy = 0;

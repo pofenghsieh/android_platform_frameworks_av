@@ -28,6 +28,9 @@
 namespace android {
 
 struct AMessage;
+#ifdef OMAP_ENHANCEMENT
+struct ABuffer;
+#endif
 
 // Helper class to manage a number of live sockets (datagram and stream-based)
 // on a single thread. Clients are notified about activity through AMessages.
@@ -75,6 +78,10 @@ struct ANetworkSession : public RefBase {
 
     status_t sendRequest(
             int32_t sessionID, const void *data, ssize_t size = -1);
+
+#ifdef OMAP_ENHANCEMENT
+    status_t sendDatagram(int32_t sessionID, const sp<ABuffer> datagram);
+#endif
 
     enum NotificationReason {
         kWhatError,
