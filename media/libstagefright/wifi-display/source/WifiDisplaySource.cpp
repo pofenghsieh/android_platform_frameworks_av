@@ -68,6 +68,7 @@ WifiDisplaySource::WifiDisplaySource(
       mPendingAvFormatChange(false),
       mRequestedByUser(false),
       mRequestedAvFormatChange(false),
+      mReconfigPending(false),
 #endif
       mClientSessionID(0),
       mReaperPending(false),
@@ -76,12 +77,7 @@ WifiDisplaySource::WifiDisplaySource(
       mIsHDCP2_0(false),
       mHDCPPort(0),
       mHDCPInitializationComplete(false),
-#ifdef OMAP_ENHANCEMENT
-      mSetupTriggerDeferred(false),
-      mReconfigPending(false)
-#else
       mSetupTriggerDeferred(false)
-#endif
 {
 }
 
