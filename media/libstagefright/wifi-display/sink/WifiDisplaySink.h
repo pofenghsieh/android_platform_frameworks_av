@@ -34,6 +34,14 @@ struct VideoMode;
 struct AudioMode;
 #endif
 
+#ifdef OMAP_ENHANCEMENT
+class RtspStateListener : public RefBase {
+public:
+    virtual ~RtspStateListener() {};
+    virtual void onStateChanged(int state) = 0;
+};
+#endif
+
 // Represents the RTSP client acting as a wifi display sink.
 // Connects to a wifi display source and renders the incoming
 // transport stream using a MediaPlayer instance.
@@ -49,6 +57,8 @@ struct WifiDisplaySink : public AHandler {
     void play();
     void pause();
     void teardown();
+    void setRtspStateListener(const sp<RtspStateListener> &listener);
+    void removeRtspStateListener();
 #else
     void start(const char *sourceHost, int32_t sourcePort);
     void start(const char *uri);
@@ -136,6 +146,11 @@ private:
     sp<AudioMode> mAudioMode;
 #endif
 
+#ifdef OMAP_ENHANCEMENT
+    sp<RtspStateListener> mRtspStateListener;
+    Mutex mRtspStateListenerLock;
+#endif
+
     status_t sendM2(int32_t sessionID);
     status_t sendDescribe(int32_t sessionID, const char *uri);
     status_t sendSetup(int32_t sessionID, const char *uri);
@@ -217,6 +232,10 @@ private:
     bool ParseURL(
             const char *url, AString *host, int32_t *port, AString *path,
             AString *user, AString *pass);
+
+#ifdef OMAP_ENHANCEMENT
+    void notifyRtspStateListener();
+#endif
 
     DISALLOW_EVIL_CONSTRUCTORS(WifiDisplaySink);
 };

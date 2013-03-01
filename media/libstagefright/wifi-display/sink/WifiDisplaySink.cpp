@@ -27,6 +27,7 @@
 #include "VideoParameters.h"
 #include "AudioParameters.h"
 #include "RtspConfig.h"
+#include "RtspUtils.h"
 #endif
 
 #include <media/stagefright/foundation/ABuffer.h>
@@ -52,7 +53,13 @@ WifiDisplaySink::WifiDisplaySink(
       mNetSession(netSession),
       mSurfaceTex(surfaceTex),
       mSessionID(0),
+#ifdef OMAP_ENHANCEMENT
+      mNextCSeq(1),
+      mRtspStateListener(NULL) {
+#else
       mNextCSeq(1) {
+#endif
+
 }
 
 WifiDisplaySink::~WifiDisplaySink() {
@@ -106,6 +113,47 @@ void WifiDisplaySink::teardown() {
     msg->setInt32("action", kActionTeardown);
     msg->post();
 }
+
+void WifiDisplaySink::setRtspStateListener(const sp<RtspStateListener> &listener) {
+    Mutex::Autolock lock(&mRtspStateListenerLock);
+    if (mRtspStateListener == NULL) {
+        mRtspStateListener = listener;
+    }
+}
+
+void WifiDisplaySink::notifyRtspStateListener() {
+    int rtspState;
+    switch (mState) {
+    case CONNECTING:
+        rtspState = RTSP_STATE_CONNECTING;
+        break;
+    case CONNECTED:
+        rtspState = RTSP_STATE_CONNECTED;
+        break;
+    case PLAYING:
+        rtspState = RTSP_STATE_PLAYING;
+        break;
+    case PAUSED:
+        rtspState = RTSP_STATE_PAUSED;
+        break;
+    default:
+        rtspState = RTSP_STATE_UNDEFINED;
+        break;
+    }
+
+    Mutex::Autolock lock(&mRtspStateListenerLock);
+    if (mRtspStateListener != NULL) {
+        mRtspStateListener->onStateChanged(rtspState);
+    }
+}
+
+void WifiDisplaySink::removeRtspStateListener() {
+    Mutex::Autolock lock(&mRtspStateListenerLock);
+    if (mRtspStateListener != NULL) {
+        mRtspStateListener.clear();
+    }
+}
+
 #else
 void WifiDisplaySink::start(const char *sourceHost, int32_t sourcePort) {
     sp<AMessage> msg = new AMessage(kWhatStart, id());
@@ -239,6 +287,7 @@ void WifiDisplaySink::onMessageReceived(const sp<AMessage> &msg) {
 
             if (err == OK) {
                 mState = CONNECTING;
+                notifyRtspStateListener();
             }
 
             sp<AMessage> response = new AMessage;
@@ -310,6 +359,9 @@ void WifiDisplaySink::onMessageReceived(const sp<AMessage> &msg) {
                 {
                     ALOGI("We're now connected.");
                     mState = CONNECTED;
+#ifdef OMAP_ENHANCEMENT
+                    notifyRtspStateListener();
+#endif
 
                     if (!mSetupURI.empty()) {
                         status_t err =
@@ -567,6 +619,9 @@ status_t WifiDisplaySink::onReceivePlayResponse(
     }
 
     mState = PLAYING;
+#ifdef OMAP_ENHANCEMENT
+    notifyRtspStateListener();
+#endif
 
     return OK;
 }
@@ -597,7 +652,9 @@ status_t WifiDisplaySink::onReceivePauseResponse(
     }
 
     mState = PAUSED;
-
+#ifdef OMAP_ENHANCEMENT
+    notifyRtspStateListener();
+#endif
     return OK;
 }
 
