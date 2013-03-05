@@ -109,6 +109,7 @@ private:
     sp<VideoTable> checkResolution(const sp<VideoMode> &mode);
     List< sp<H264Codec> > *getCodecs();
     void initMatchingModes(const sp<VideoParameters> &sinkParams);
+    sp<VideoMode> getMatchingVideoMode(const SimpleVideoMode &videoMode);
 };
 
 }  // namespace android

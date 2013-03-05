@@ -578,6 +578,20 @@ bool VideoParameters::isMatchingVideoMode(const sp<VideoMode> &videoMode) {
     return false;
 }
 
+sp<VideoMode> VideoParameters::getMatchingVideoMode(const SimpleVideoMode &videoMode) {
+    List< sp<VideoMode> >::iterator it = mMatchingModes.begin();
+    while (it != mMatchingModes.end()) {
+        const sp<VideoMode> &capableMode = *it++;
+        if (capableMode->width == videoMode.width &&
+                capableMode->height == videoMode.height &&
+                capableMode->frameRate == videoMode.frameRate &&
+                capableMode->progressive == videoMode.progressive) {
+            return capableMode;
+        }
+    }
+    return NULL;
+}
+
 sp<VideoMode> VideoParameters::getBestVideoMode(
         const sp<VideoParameters> &sinkParams, const sp<VideoMode> &desiredMode) {
     if (sinkParams == NULL) return NULL;
@@ -599,15 +613,22 @@ sp<VideoMode> VideoParameters::getBestVideoMode(
     // video mode in case the sink reported 0.
     if (sinkParams->mNative != kNativeDefaultVideoMode) {
         // Check if sink native video mode is in list of capable video modes
-        List< sp<VideoMode> >::iterator it = mMatchingModes.begin();
-        while (it != mMatchingModes.end()) {
-            const sp<VideoMode> &capableMode = *it++;
-            if (capableMode->width == sinkParams->mNativeMode.width &&
-                    capableMode->height == sinkParams->mNativeMode.height &&
-                    capableMode->frameRate == sinkParams->mNativeMode.frameRate &&
-                    capableMode->progressive == sinkParams->mNativeMode.progressive) {
-                return capableMode;
-            }
+        const sp<VideoMode> matchingMode = getMatchingVideoMode(sinkParams->mNativeMode);
+        if (matchingMode != NULL) {
+            ALOGI("The best video mode based on sink native resolution %s",
+                    matchingMode->toString().c_str());
+            return matchingMode;
+        }
+    }
+
+    // We ignore the source native resolution with value 0 (640x480).
+    if (mNative != kNativeDefaultVideoMode) {
+        // Check if source native video mode is in list of capable video modes
+        const sp<VideoMode> matchingMode = getMatchingVideoMode(mNativeMode);
+        if (matchingMode != NULL) {
+            ALOGI("The best video mode based on source native resolution %s",
+                    matchingMode->toString().c_str());
+            return matchingMode;
         }
     }
 
