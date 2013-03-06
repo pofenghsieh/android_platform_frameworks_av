@@ -151,6 +151,7 @@ bool Converter::needToManuallyPrependSPSPPS() const {
     return mNeedToManuallyPrependSPSPPS;
 }
 
+#ifndef OMAP_ENHANCEMENT
 static int32_t getBitrate(const char *propName, int32_t defaultValue) {
     char val[PROPERTY_VALUE_MAX];
     if (property_get(propName, val, NULL)) {
@@ -164,6 +165,7 @@ static int32_t getBitrate(const char *propName, int32_t defaultValue) {
 
     return defaultValue;
 }
+#endif
 
 status_t Converter::initEncoder() {
     AString inputMIME;
@@ -201,26 +203,15 @@ status_t Converter::initEncoder() {
 
     mOutputFormat->setString("mime", outputMIME.c_str());
 
-    int32_t audioBitrate = getBitrate("media.wfd.audio-bitrate", 128000);
-    int32_t videoBitrate = getBitrate("media.wfd.video-bitrate", 5000000);
-
-    ALOGI("using audio bitrate of %d bps, video bitrate of %d bps",
-          audioBitrate, videoBitrate);
+#ifdef OMAP_ENHANCEMENT
+    int32_t bitrate = 0;
+    CHECK(mOutputFormat->findInt32("bitrate", &bitrate));
 
     if (isAudio) {
-        mOutputFormat->setInt32("bitrate", audioBitrate);
+        ALOGI("Using audio bitrate of %d bps", bitrate);
     } else {
-        mOutputFormat->setInt32("bitrate", videoBitrate);
         mOutputFormat->setInt32("bitrate-mode", OMX_Video_ControlRateConstant);
-#ifndef OMAP_ENHANCEMENT
-        mOutputFormat->setInt32("frame-rate", 30);
-#endif
         mOutputFormat->setInt32("i-frame-interval", 15);  // Iframes every 15 secs
-
-#ifndef OMAP_ENHANCEMENT
-        // Configure encoder to use intra macroblock refresh mode
-        mOutputFormat->setInt32("intra-refresh-mode", OMX_VIDEO_IntraRefreshCyclic);
-#endif
 
         int width, height, mbs;
         if (!mOutputFormat->findInt32("width", &width)
@@ -235,10 +226,42 @@ status_t Converter::initEncoder() {
         // to recover from a lost/corrupted packet.
         mbs = (((width + 15) / 16) * ((height + 15) / 16) * 10) / 100;
         mOutputFormat->setInt32("intra-refresh-CIR-mbs", mbs);
-#ifdef OMAP_ENHANCEMENT
         mOutputFormat->setInt32("wfd-enabled", 1);  //This flag is used to enable WFD specifiSettings
-#endif
+        ALOGI("Using video bitrate of %d bps", bitrate);
     }
+#else
+    int32_t audioBitrate = getBitrate("media.wfd.audio-bitrate", 128000);
+    int32_t videoBitrate = getBitrate("media.wfd.video-bitrate", 5000000);
+
+    ALOGI("using audio bitrate of %d bps, video bitrate of %d bps",
+          audioBitrate, videoBitrate);
+
+    if (isAudio) {
+        mOutputFormat->setInt32("bitrate", audioBitrate);
+    } else {
+        mOutputFormat->setInt32("bitrate", videoBitrate);
+        mOutputFormat->setInt32("bitrate-mode", OMX_Video_ControlRateConstant);
+        mOutputFormat->setInt32("frame-rate", 30);
+        mOutputFormat->setInt32("i-frame-interval", 15);  // Iframes every 15 secs
+
+        // Configure encoder to use intra macroblock refresh mode
+        mOutputFormat->setInt32("intra-refresh-mode", OMX_VIDEO_IntraRefreshCyclic);
+
+        int width, height, mbs;
+        if (!mOutputFormat->findInt32("width", &width)
+                || !mOutputFormat->findInt32("height", &height)) {
+            return ERROR_UNSUPPORTED;
+        }
+
+        // Update macroblocks in a cyclic fashion with 10% of all MBs within
+        // frame gets updated at one time. It takes about 10 frames to
+        // completely update a whole video frame. If the frame rate is 30,
+        // it takes about 333 ms in the best case (if next frame is not an IDR)
+        // to recover from a lost/corrupted packet.
+        mbs = (((width + 15) / 16) * ((height + 15) / 16) * 10) / 100;
+        mOutputFormat->setInt32("intra-refresh-CIR-mbs", mbs);
+    }
+#endif
 
     ALOGV("output format is '%s'", mOutputFormat->debugString(0).c_str());
 

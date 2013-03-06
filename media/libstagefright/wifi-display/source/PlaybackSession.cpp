@@ -33,6 +33,7 @@
 #include "VideoParameters.h"
 #include "AudioParameters.h"
 #include "CaptureSource.h"
+#include "QosPolicy.h"
 #endif
 
 #include <binder/IServiceManager.h>
@@ -58,6 +59,22 @@
 #include <OMX_IVCommon.h>
 
 namespace android {
+
+#ifdef OMAP_ENHANCEMENT
+static int32_t getBitrate(const char *propName, int32_t defaultValue) {
+    char val[PROPERTY_VALUE_MAX];
+    if (property_get(propName, val, NULL)) {
+        char *end;
+        unsigned long x = strtoul(val, &end, 10);
+
+        if (*end == '\0' && end > val && x > 0) {
+            return x;
+        }
+    }
+
+    return defaultValue;
+}
+#endif
 
 struct WifiDisplaySource::PlaybackSession::Track : public AHandler {
     enum {
@@ -381,6 +398,8 @@ status_t WifiDisplaySource::PlaybackSession::init(
     mVideoMode = videoMode;
     mAudioMode = audioMode;
 
+    setupQosPolicy();
+
     status_t err = setupPacketizer();
 #else
         bool usePCMAudio) {
@@ -582,7 +601,7 @@ void WifiDisplaySource::PlaybackSession::onMessageReceived(
                 CHECK(msg->findInt64("eventTimeUs", &eventTimeUs));
                 CHECK(msg->findInt64("timeUs", &timeUs));
 
-                ALOGV("Queued packets %lld at %lld", timeUs, eventTimeUs);
+                mQosPolicy->reportQueuedPacket(eventTimeUs, timeUs);
             } else if (what == Sender::kWhatPacketsSent) {
                 int64_t eventTimeUs;
                 int64_t timeUs;
@@ -591,7 +610,7 @@ void WifiDisplaySource::PlaybackSession::onMessageReceived(
                 CHECK(msg->findInt64("timeUs", &timeUs));
                 CHECK(msg->findInt32("payloadSize", &payloadSize));
 
-                ALOGV("Sent packets %lld (%d bytes) at %lld", timeUs, payloadSize, eventTimeUs);
+                mQosPolicy->reportSentPacket(eventTimeUs, timeUs, payloadSize);
 #endif
             } else {
                 TRESPASS();
@@ -600,6 +619,29 @@ void WifiDisplaySource::PlaybackSession::onMessageReceived(
             break;
         }
 
+#ifdef OMAP_ENHANCEMENT
+        case kWhatQosNotify:
+        {
+            int32_t what;
+            CHECK(msg->findInt32("what", &what));
+
+            const sp<Track> &track = mTracks.valueFor(mVideoTrackIndex);
+
+            if (what == QosPolicy::kWhatChangeBitRate) {
+                int bitrate;
+                CHECK(msg->findInt32("bitrate", &bitrate));
+                track->setBitrate(bitrate);
+            } else if (what == QosPolicy::kWhatPauseVideo) {
+                track->pause();
+            } else if (what == QosPolicy::kWhatResumeVideo) {
+                track->resume();
+            } else {
+                TRESPASS();
+            }
+
+            break;
+        }
+#endif
         case kWhatFinishPlay:
         {
             onFinishPlay();
@@ -696,6 +738,17 @@ void WifiDisplaySource::PlaybackSession::onMessageReceived(
 }
 
 #ifdef OMAP_ENHANCEMENT
+void WifiDisplaySource::PlaybackSession::setupQosPolicy() {
+    sp<AMessage> notify = new AMessage(kWhatQosNotify, id());
+
+    mQosPolicy = new QosPolicy(notify);
+
+    int32_t lowBufferingWatermarkUs = 30000;
+    int32_t highBufferingWatermarkUs = 150000;
+
+    mQosPolicy->setPolicy(lowBufferingWatermarkUs, highBufferingWatermarkUs);
+}
+
 status_t WifiDisplaySource::PlaybackSession::setupPacketizer() {
 #else
 status_t WifiDisplaySource::PlaybackSession::setupPacketizer(bool usePCMAudio) {
@@ -843,9 +896,14 @@ status_t WifiDisplaySource::PlaybackSession::addVideoSource() {
     status_t err = convertMetaDataToMessage(videoSource->getFormat(), &format);
     CHECK_EQ(err, (status_t)OK);
 
+    int32_t bitrate = getBitrate("media.wfd.video-bitrate", 5000000);
+
+    mQosPolicy->setTargetBitRate(bitrate);
+
     format->setInt32("store-metadata-in-buffers", true);
     format->setInt32("color-format", OMX_COLOR_FormatAndroidOpaque);
     format->setInt32("frame-rate", mVideoMode->frameRate);
+    format->setInt32("bitrate", bitrate);
 
     size_t numInputBuffers;
     err = addSource(
@@ -892,6 +950,7 @@ status_t WifiDisplaySource::PlaybackSession::addAudioSource() {
                 format->setString("codec", "AC3");
             }
             format->setInt32("channels", mAudioMode->channelNum);
+            format->setInt32("bitrate", getBitrate("media.wfd.audio-bitrate", 128000));
 
             return addSource(
                     format, audioSource, false /* isRepeaterSource */,

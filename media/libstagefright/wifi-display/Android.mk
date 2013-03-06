@@ -28,6 +28,7 @@ LOCAL_SRC_FILES+= \
         RtspConfig.cpp                  \
         source/CaptureDevice.cpp        \
         source/CaptureSource.cpp        \
+        source/QosPolicy.cpp            \
 
 endif
 

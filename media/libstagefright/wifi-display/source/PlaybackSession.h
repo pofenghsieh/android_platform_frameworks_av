@@ -33,6 +33,7 @@ struct TSPacketizer;
 #ifdef OMAP_ENHANCEMENT
 struct VideoMode;
 struct AudioMode;
+struct QosPolicy;
 #endif
 
 // Encapsulates the state of an RTP/RTCP session in the context of wifi
@@ -103,6 +104,9 @@ private:
         kWhatPacketize,
         kWhatPause,
         kWhatResume,
+#ifdef OMAP_ENHANCEMENT
+        kWhatQosNotify,
+#endif
     };
 
     sp<ANetworkSession> mNetSession;
@@ -129,8 +133,11 @@ private:
 #ifdef OMAP_ENHANCEMENT
     sp<VideoMode> mVideoMode;
     sp<AudioMode> mAudioMode;
+    sp<QosPolicy> mQosPolicy;
 
     const bool mRecreated;
+
+    void setupQosPolicy();
 
     status_t setupPacketizer();
 
