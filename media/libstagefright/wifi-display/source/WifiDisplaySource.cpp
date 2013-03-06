@@ -1926,16 +1926,14 @@ void WifiDisplaySource::sessionRecreate() {
     looper()->unregisterHandler(mClientInfo.mPlaybackSession->id());
     mClientInfo.mPlaybackSession.clear();
 
-    int32_t playbackSessionID = makeUniquePlaybackSessionID();
     sp<AMessage> notify = new AMessage(kWhatPlaybackSessionNotify, id());
-    notify->setInt32("playbackSessionID", playbackSessionID);
+    notify->setInt32("playbackSessionID", mClientInfo.mPlaybackSessionID);
     notify->setInt32("sessionID", mClientSessionID);
 
     sp<PlaybackSession> playbackSession =
         new PlaybackSession(
             mNetSession, notify, mInterfaceAddr, mHDCP, true);
 
-    mClientInfo.mPlaybackSessionID = playbackSessionID;
     mClientInfo.mPlaybackSession = playbackSession;
 
     looper()->registerHandler(playbackSession);
