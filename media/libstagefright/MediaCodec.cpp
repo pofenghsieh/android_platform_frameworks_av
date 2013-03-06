@@ -339,6 +339,14 @@ void MediaCodec::requestActivityNotification(const sp<AMessage> &notify) {
     msg->post();
 }
 
+#ifdef OMAP_ENHANCEMENT
+void MediaCodec::setBitrate(int32_t bitrate) {
+    sp<AMessage> notify = new AMessage(kWhatSetBitrate, id());
+    notify->setInt32("bitrate", bitrate);
+    notify->post();
+}
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 
 void MediaCodec::cancelPendingDequeueOperations() {
@@ -1170,6 +1178,15 @@ void MediaCodec::onMessageReceived(const sp<AMessage> &msg) {
             postActivityNotificationIfPossible();
             break;
         }
+#ifdef OMAP_ENHANCEMENT
+        case kWhatSetBitrate:
+        {
+            int32_t bitrate = 0;
+            CHECK(msg->findInt32("bitrate", &bitrate));
+            mCodec->signalSetBitrate(bitrate);
+            break;
+        }
+#endif
 
         default:
             TRESPASS();

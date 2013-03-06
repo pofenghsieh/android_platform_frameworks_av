@@ -2539,6 +2539,43 @@ error:
     }
 }
 
+#ifdef OMAP_ENHANCEMENT
+void ACodec::signalSetBitrate(int32_t bitrate) {
+    sp<AMessage> notify = new AMessage(kWhatSetBitrate, id());
+    notify->setInt32("bitrate", bitrate);
+    notify->post();
+}
+
+status_t ACodec::setBitrate(int32_t bitrate) {
+    if (!mIsEncoder) {
+        return ERROR_UNSUPPORTED;
+    }
+
+    OMX_VIDEO_CONFIG_BITRATETYPE bitrateType;
+    InitOMXParams(&bitrateType);
+
+    bitrateType.nPortIndex = kPortIndexOutput;
+    status_t err = mOMX->getConfig(
+            mNode, OMX_IndexConfigVideoBitrate,
+            &bitrateType, sizeof(bitrateType));
+
+    if (err != OK) {
+        return BAD_VALUE;
+    }
+
+    bitrateType.nEncodeBitrate = bitrate;
+
+    err = mOMX->setConfig(
+            mNode, OMX_IndexConfigVideoBitrate,
+            &bitrateType, sizeof(bitrateType));
+    if (err != OK) {
+        return BAD_VALUE;
+    }
+
+    return OK;
+}
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 
 ACodec::PortDescription::PortDescription() {
@@ -3697,6 +3734,20 @@ bool ACodec::ExecutingState::onMessageReceived(const sp<AMessage> &msg) {
             handled = true;
             break;
         }
+#ifdef OMAP_ENHANCEMENT
+        case kWhatSetBitrate:
+        {
+            int32_t bitrate = 0;
+            CHECK(msg->findInt32("bitrate", &bitrate));
+            status_t err = mCodec->setBitrate(bitrate);
+            if (err != OK) {
+                ALOGW("Setting bitrate failed.");
+            }
+
+            handled = true;
+            break;
+        }
+#endif
 
         default:
             handled = BaseState::onMessageReceived(msg);

@@ -77,6 +77,10 @@ struct ACodec : public AHierarchicalStateMachine {
         DISALLOW_EVIL_CONSTRUCTORS(PortDescription);
     };
 
+#ifdef OMAP_ENHANCEMENT
+    void signalSetBitrate(int32_t bitrate);
+#endif
+
 protected:
     virtual ~ACodec();
 
@@ -105,6 +109,9 @@ private:
         kWhatConfigureComponent      = 'conf',
         kWhatStart                   = 'star',
         kWhatRequestIDRFrame         = 'ridr',
+#ifdef OMAP_ENHANCEMENT
+        kWhatSetBitrate              = 'seBr',
+#endif
     };
 
     enum {
@@ -278,6 +285,10 @@ private:
             status_t internalError = UNKNOWN_ERROR);
 
     status_t requestIDRFrame();
+
+#ifdef OMAP_ENHANCEMENT
+    status_t setBitrate(int32_t bitrate);
+#endif
 
     DISALLOW_EVIL_CONSTRUCTORS(ACodec);
 };

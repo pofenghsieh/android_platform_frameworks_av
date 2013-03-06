@@ -103,6 +103,10 @@ struct WifiDisplaySource::PlaybackSession::Track : public AHandler {
 
     void requestIDRFrame();
 
+#ifdef OMAP_ENHANCEMENT
+    void setBitrate(int32_t bitrate);
+#endif
+
 protected:
     virtual void onMessageReceived(const sp<AMessage> &msg);
     virtual ~Track();
@@ -328,6 +332,14 @@ bool WifiDisplaySource::PlaybackSession::Track::isSuspended() const {
     // If we've not seen new output data for 60ms or more, we consider
     // this track suspended for the time being.
     return (ALooper::GetNowUs() - mLastOutputBufferQueuedTimeUs) > 60000ll;
+}
+#endif
+
+#ifdef OMAP_ENHANCEMENT
+void WifiDisplaySource::PlaybackSession::Track::setBitrate(int32_t bitrate) {
+    if (!mIsAudio) {
+        mConverter->setBitrate(bitrate);
+    }
 }
 #endif
 

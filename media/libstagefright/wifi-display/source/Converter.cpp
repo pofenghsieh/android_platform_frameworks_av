@@ -456,6 +456,18 @@ void Converter::onMessageReceived(const sp<AMessage> &msg) {
             ALOGI("encoder (%s) shut down.", mime.c_str());
             break;
         }
+#ifdef OMAP_ENHANCEMENT
+        case kWhatSetBitrate:
+        {
+            if (mEncoder != NULL && mIsVideo) {
+                int32_t bitrate = 0;
+                CHECK(msg->findInt32("bitrate", &bitrate));
+                ALOGI("setting bitrate %d", bitrate);
+                mEncoder->setBitrate(bitrate);
+            }
+            break;
+        }
+#endif
 
         default:
             TRESPASS();
@@ -737,5 +749,13 @@ status_t Converter::doMoreWork() {
 void Converter::requestIDRFrame() {
     (new AMessage(kWhatRequestIDRFrame, id()))->post();
 }
+
+#ifdef OMAP_ENHANCEMENT
+void Converter::setBitrate(int32_t bitrate) {
+    sp<AMessage> notify = new AMessage(kWhatSetBitrate, id());
+    notify->setInt32("bitrate", bitrate);
+    notify->post();
+}
+#endif
 
 }  // namespace android

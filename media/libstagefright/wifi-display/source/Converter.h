@@ -72,9 +72,16 @@ struct Converter : public AHandler {
         kWhatShutdown,
         kWhatMediaPullerNotify,
         kWhatEncoderActivity,
+#ifdef OMAP_ENHANCEMENT
+        kWhatSetBitrate,
+#endif
     };
 
     void shutdownAsync();
+
+#ifdef OMAP_ENHANCEMENT
+    void setBitrate(int32_t bitrate);
+#endif
 
 protected:
     virtual ~Converter();

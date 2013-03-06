@@ -113,6 +113,10 @@ struct MediaCodec : public AHandler {
     // pending, an error is pending.
     void requestActivityNotification(const sp<AMessage> &notify);
 
+#ifdef OMAP_ENHANCEMENT
+    void setBitrate(int32_t bitrate);
+#endif
+
 protected:
     virtual ~MediaCodec();
     virtual void onMessageReceived(const sp<AMessage> &msg);
@@ -154,6 +158,9 @@ private:
         kWhatCodecNotify                    = 'codc',
         kWhatRequestIDRFrame                = 'ridr',
         kWhatRequestActivityNotification    = 'racN',
+#ifdef OMAP_ENHANCEMENT
+        kWhatSetBitrate                     = 'seBr',
+#endif
     };
 
     enum {
