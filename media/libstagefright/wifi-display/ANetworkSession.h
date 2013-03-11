@@ -90,6 +90,9 @@ struct ANetworkSession : public RefBase {
         kWhatData,
         kWhatDatagram,
         kWhatBinaryData,
+#ifdef OMAP_ENHANCEMENT
+        kWhatDatagramSent,
+#endif
     };
 
 protected:

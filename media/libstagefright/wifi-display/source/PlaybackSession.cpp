@@ -575,6 +575,24 @@ void WifiDisplaySource::PlaybackSession::onMessageReceived(
                 onFinishPlay2();
             } else if (what == Sender::kWhatSessionDead) {
                 notifySessionDead();
+#ifdef OMAP_ENHANCEMENT
+            } else if (what == Sender::kWhatPacketsQueued) {
+                int64_t eventTimeUs;
+                int64_t timeUs;
+                CHECK(msg->findInt64("eventTimeUs", &eventTimeUs));
+                CHECK(msg->findInt64("timeUs", &timeUs));
+
+                ALOGV("Queued packets %lld at %lld", timeUs, eventTimeUs);
+            } else if (what == Sender::kWhatPacketsSent) {
+                int64_t eventTimeUs;
+                int64_t timeUs;
+                int32_t payloadSize;
+                CHECK(msg->findInt64("eventTimeUs", &eventTimeUs));
+                CHECK(msg->findInt64("timeUs", &timeUs));
+                CHECK(msg->findInt32("payloadSize", &payloadSize));
+
+                ALOGV("Sent packets %lld (%d bytes) at %lld", timeUs, payloadSize, eventTimeUs);
+#endif
             } else {
                 TRESPASS();
             }
@@ -1202,6 +1220,9 @@ bool WifiDisplaySource::PlaybackSession::drainAccessUnit() {
 
     if ((ssize_t)minTrackIndex == mVideoTrackIndex) {
         packets->meta()->setInt32("isVideo", 1);
+#ifdef OMAP_ENHANCEMENT
+        packets->meta()->setInt32("tracking", 1);
+#endif
     }
     mSender->queuePackets(minTimeUs, packets);
 

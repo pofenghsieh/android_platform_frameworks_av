@@ -437,6 +437,23 @@ status_t ANetworkSession::Session::writeMore() {
             err = OK;
 
             if (n > 0) {
+#ifdef OMAP_ENHANCEMENT
+                int32_t tracking;
+                if (datagram->meta()->findInt32("tracking", &tracking) && tracking) {
+                    int64_t timeUs;
+                    int32_t payloadSize;
+                    CHECK(datagram->meta()->findInt64("timeUs", &timeUs));
+                    CHECK(datagram->meta()->findInt32("payloadSize", &payloadSize));
+
+                    sp<AMessage> notify = mNotify->dup();
+                    notify->setInt32("sessionID", mSessionID);
+                    notify->setInt32("reason", kWhatDatagramSent);
+                    notify->setInt64("eventTimeUs", ALooper::GetNowUs());
+                    notify->setInt64("timeUs", timeUs);
+                    notify->setInt32("payloadSize", payloadSize);
+                    notify->post();
+                }
+#endif
                 mOutDatagrams.erase(mOutDatagrams.begin());
             } else if (n < 0) {
                 err = -errno;

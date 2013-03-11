@@ -44,6 +44,10 @@ struct Sender : public AHandler {
         kWhatInitDone,
         kWhatSessionDead,
         kWhatBinaryData,
+#ifdef OMAP_ENHANCEMENT
+        kWhatPacketsQueued,
+        kWhatPacketsSent,
+#endif
     };
 
     enum TransportMode {

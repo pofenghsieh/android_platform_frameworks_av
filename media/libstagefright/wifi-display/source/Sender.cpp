@@ -297,6 +297,19 @@ void Sender::queuePackets(
 
     udpPackets->meta()->setInt64("timeUs", timeUs);
 
+#ifdef OMAP_ENHANCEMENT
+    int32_t tracking;
+    if (tsPackets->meta()->findInt32("tracking", &tracking) && tracking) {
+        udpPackets->meta()->setInt32("tracking", tracking);
+
+        sp<AMessage> notify = mNotify->dup();
+        notify->setInt32("what", kWhatPacketsQueued);
+        notify->setInt64("eventTimeUs", ALooper::GetNowUs());
+        notify->setInt64("timeUs", timeUs);
+        notify->post();
+    }
+#endif
+
     size_t dstOffset = 0;
     for (size_t i = 0; i < numTSPackets; ++i) {
         if ((i % kMaxNumTSPacketsPerRTPPacket) == 0) {
@@ -451,6 +464,25 @@ void Sender::onMessageReceived(const sp<AMessage> &msg) {
                     break;
                 }
 
+#ifdef OMAP_ENHANCEMENT
+                case ANetworkSession::kWhatDatagramSent:
+                {
+                    int64_t eventTimeUs;
+                    int64_t timeUs;
+                    int32_t payloadSize;
+                    CHECK(msg->findInt64("eventTimeUs", &eventTimeUs));
+                    CHECK(msg->findInt64("timeUs", &timeUs));
+                    CHECK(msg->findInt32("payloadSize", &payloadSize));
+
+                    sp<AMessage> notify = mNotify->dup();
+                    notify->setInt32("what", kWhatPacketsSent);
+                    notify->setInt64("eventTimeUs", eventTimeUs);
+                    notify->setInt64("timeUs", timeUs);
+                    notify->setInt32("payloadSize", payloadSize);
+                    notify->post();
+                    break;
+                }
+#endif
                 default:
                     TRESPASS();
             }
@@ -823,6 +855,18 @@ void Sender::onDrainQueue(const sp<ABuffer> &udpPackets) {
 #ifdef OMAP_ENHANCEMENT
             sp<ABuffer> data = new ABuffer(rtpPacketSize);
             memcpy(data->data(), rtp, rtpPacketSize);
+
+            int32_t tracking;
+            if (udpPackets->size() - srcOffset <= kFullRTPPacketSize &&
+                    udpPackets->meta()->findInt32("tracking", &tracking) && tracking) {
+                int64_t timeUs;
+                CHECK(udpPackets->meta()->findInt64("timeUs", &timeUs));
+
+                data->meta()->setInt32("tracking", tracking);
+                data->meta()->setInt64("timeUs", timeUs);
+                data->meta()->setInt32("payloadSize", udpPackets->size());
+            }
+
             mNetSession->sendDatagram(mRTPSessionID, data);
 #else
             sendPacket(mRTPSessionID, rtp, rtpPacketSize);
