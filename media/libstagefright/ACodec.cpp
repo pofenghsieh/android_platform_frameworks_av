@@ -2827,7 +2827,13 @@ void ACodec::BaseState::onInputBufferFilled(const sp<AMessage> &msg) {
 
         buffer.clear();
 
+#ifdef OMAP_ENHANCEMENT
+        if (err != INFO_DISCONTINUITY) {
+            eos = true;
+        }
+#else
         eos = true;
+#endif
     }
 
     int32_t tmp;
