@@ -43,11 +43,6 @@
 
 #include "include/avc_utils.h"
 
-#ifdef ENHANCED_DOMX
-#include <OMX_TI_Video.h>
-#include <OMX_TI_Index.h>
-#endif
-
 #ifdef OMAP_ENHANCEMENT
 #include <media/AudioParameter.h>
 #include <media/AudioSystem.h>
