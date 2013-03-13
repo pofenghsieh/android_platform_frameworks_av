@@ -33,7 +33,7 @@
 #include <ui/DisplayInfo.h>
 
 #ifdef OMAP_ENHANCEMENT
-static const int32_t kMaxRetrasmissionTries = 2;
+static const uint32_t kMaxRetrasmissionTries = 2;
 #endif
 
 namespace android {
@@ -87,8 +87,8 @@ private:
 
     size_t mNumDeqeued;
 #ifdef OMAP_ENHANCEMENT
-    bool mHighFrameRate;
     int32_t mLastRtpTime;
+    bool mHighFrameRate;
 #endif
 
     DISALLOW_EVIL_CONSTRUCTORS(StreamSource);
