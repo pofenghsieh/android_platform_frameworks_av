@@ -3775,7 +3775,7 @@ bool ACodec::ExecutingState::onOMXEvent(
                             mCodec->mNode, OMX_IndexParamAudioPcm, &params, sizeof(params));
 
                     uint32_t mapping = 0;
-                    for (int32_t chCounter = 0; chCounter < params.nChannels; chCounter++) {
+                    for (uint32_t chCounter = 0; chCounter < params.nChannels; chCounter++) {
                         mapping |= params.eChannelMapping[chCounter] << (4 * chCounter);
                     }
                     AudioParameter audioParam = AudioParameter();
