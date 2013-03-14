@@ -1949,10 +1949,12 @@ void AwesomePlayer::onVideoEvent() {
 
         ATRACE_INT("Video Lateness (ms)", latenessUs / 1E3);
 
-        int32_t mVideoFPS;
+        int32_t mVideoFPS = 30;
+#if defined(OMAP_ENHANCEMENT)
         if (!(mVideoTrack->getFormat()->findInt32(kKeyVideoFPS, &mVideoFPS))) {
             mVideoFPS = 30;     //default value in case of FPS data not found
         }
+#endif
         int64_t frame_interval = 1000000ll/mVideoFPS;
 
         if (latenessUs > 500000ll
