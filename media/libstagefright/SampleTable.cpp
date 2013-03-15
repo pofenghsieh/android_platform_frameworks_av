@@ -645,6 +645,16 @@ status_t SampleTable::findSyncSampleNear(
         left = left - 1;
     }
 
+#ifdef OMAP_ENHANCEMENT
+    /*
+     * We need to correct left value because of not very precise calculations.
+     * This will provide more accurate seek operations.
+     */
+    if (left > 0) {
+        --left;
+    }
+#endif
+
     // Now ssi[left] is the sync sample index just before (or at)
     // start_sample_index.
     // Also start_sample_index < ssi[left + 1], if left + 1 < mNumSyncSamples.
