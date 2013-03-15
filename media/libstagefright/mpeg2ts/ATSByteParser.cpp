@@ -1199,14 +1199,14 @@ status_t ATSByteParser::parsePID(
 }
 
 void ATSByteParser::parseAdaptationField(ByteReader *br, unsigned PID) {
-    size_t adaptation_field_length = br->getByte() + 1;
+    size_t adaptation_field_length = br->getByte();
+    br->skipBytes(1);
     if (adaptation_field_length > 0) {
-        br->skipBytes(1);
         unsigned discontinuity = ((br->getByte()) & 0x80);
         if (discontinuity) {
             signalDiscontinuity(ATSParser::DISCONTINUITY_FORMATCHANGE, NULL);
         }
-        br->skipBytes(adaptation_field_length - 1);
+        br->skipBytes(adaptation_field_length);
     }
 }
 
