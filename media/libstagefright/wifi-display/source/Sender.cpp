@@ -37,7 +37,12 @@ static size_t kMaxNumTSPacketsPerRTPPacket = (kMaxRTPPacketSize - 12) / 188;
 
 Sender::Sender(
         const sp<ANetworkSession> &netSession,
+#ifdef OMAP_ENHANCEMENT
+        const sp<AMessage> &notify,
+        uint32_t rtpSeqNo)
+#else
         const sp<AMessage> &notify)
+#endif
     : mNetSession(netSession),
       mNotify(notify),
       mTransportMode(TRANSPORT_UDP),
@@ -56,7 +61,11 @@ Sender::Sender(
       mRTCPConnected(false),
       mFirstOutputBufferReadyTimeUs(-1ll),
       mFirstOutputBufferSentTimeUs(-1ll),
+#ifdef OMAP_ENHANCEMENT
+      mRTPSeqNo(rtpSeqNo),
+#else
       mRTPSeqNo(0),
+#endif
 #if ENABLE_RETRANSMISSION && RETRANSMISSION_ACCORDING_TO_RFC_XXXX
       mRTPRetransmissionSeqNo(0),
 #endif

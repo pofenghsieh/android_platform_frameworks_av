@@ -394,7 +394,8 @@ status_t WifiDisplaySource::PlaybackSession::init(
         Sender::TransportMode transportMode,
 #ifdef OMAP_ENHANCEMENT
         const sp<VideoMode> &videoMode,
-        const sp<AudioMode> &audioMode) {
+        const sp<AudioMode> &audioMode,
+        uint32_t lastRTPSeqNo) {
     mVideoMode = videoMode;
     mAudioMode = audioMode;
 
@@ -411,7 +412,11 @@ status_t WifiDisplaySource::PlaybackSession::init(
     }
 
     sp<AMessage> notify = new AMessage(kWhatSenderNotify, id());
+#ifdef OMAP_ENHANCEMENT
+    mSender = new Sender(mNetSession, notify, lastRTPSeqNo);
+#else
     mSender = new Sender(mNetSession, notify);
+#endif
 
     mSenderLooper = new ALooper;
     mSenderLooper->setName("sender_looper");
@@ -670,6 +675,9 @@ void WifiDisplaySource::PlaybackSession::onMessageReceived(
                 }
 
                 mSenderLooper->unregisterHandler(mSender->id());
+#ifdef OMAP_ENHANCEMENT
+                uint32_t lastRTPSeqNo = mSender->getLastRTPSeqNo();
+#endif
                 mSender.clear();
                 mSenderLooper.clear();
 
@@ -677,6 +685,9 @@ void WifiDisplaySource::PlaybackSession::onMessageReceived(
 
                 sp<AMessage> notify = mNotify->dup();
                 notify->setInt32("what", kWhatSessionDestroyed);
+#ifdef OMAP_ENHANCEMENT
+                notify->setInt32("lastRTPSeqNo", lastRTPSeqNo);
+#endif
                 notify->post();
             }
             break;

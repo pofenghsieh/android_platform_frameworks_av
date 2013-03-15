@@ -69,6 +69,7 @@ WifiDisplaySource::WifiDisplaySource(
       mRequestedByUser(false),
       mRequestedAvFormatChange(false),
       mReconfigPending(false),
+      mLastRTPSeqNo(0),
 #endif
       mClientSessionID(0),
       mReaperPending(false),
@@ -459,6 +460,7 @@ void WifiDisplaySource::onMessageReceived(const sp<AMessage> &msg) {
                 }
             } else if (what == PlaybackSession::kWhatSessionDestroyed) {
 #ifdef OMAP_ENHANCEMENT
+                msg->findInt32("lastRTPSeqNo", reinterpret_cast<int32_t*>(&mLastRTPSeqNo));
                 if (mReconfigPending) {
                     mReconfigPending = false;
                     sessionRecreate();
@@ -1944,7 +1946,8 @@ void WifiDisplaySource::sessionRecreate() {
         mClientRtcp,
         Sender::TRANSPORT_UDP,
         mVideoMode,
-        mAudioMode);
+        mAudioMode,
+        mLastRTPSeqNo);
 
     if (err != OK) {
         looper()->unregisterHandler(playbackSession->id());

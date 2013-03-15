@@ -179,6 +179,8 @@ private:
 
     int mClientRtp, mClientRtcp;
     bool mReconfigPending;
+
+    uint32_t mLastRTPSeqNo;
 #endif
 
     int32_t mClientSessionID;

@@ -55,7 +55,8 @@ struct WifiDisplaySource::PlaybackSession : public AHandler {
             const char *clientIP, int32_t clientRtp, int32_t clientRtcp,
             Sender::TransportMode transportMode,
             const sp<VideoMode> &videoMode,
-            const sp<AudioMode> &audioMode);
+            const sp<AudioMode> &audioMode,
+            uint32_t lastRTPSeqNo = 0);
 #else
     status_t init(
             const char *clientIP, int32_t clientRtp, int32_t clientRtcp,

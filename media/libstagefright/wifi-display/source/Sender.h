@@ -38,7 +38,13 @@ struct ABuffer;
 struct ANetworkSession;
 
 struct Sender : public AHandler {
+#ifdef OMAP_ENHANCEMENT
+    Sender(const sp<ANetworkSession> &netSession,
+            const sp<AMessage> &notify,
+            uint32_t lastRTPSeqNo);
+#else
     Sender(const sp<ANetworkSession> &netSession, const sp<AMessage> &notify);
+#endif
 
     enum {
         kWhatInitDone,
@@ -65,6 +71,10 @@ struct Sender : public AHandler {
 
     void queuePackets(int64_t timeUs, const sp<ABuffer> &tsPackets);
     void scheduleSendSR();
+
+#ifdef OMAP_ENHANCEMENT
+    uint32_t getLastRTPSeqNo() { return mRTPSeqNo; };
+#endif
 
 protected:
     virtual ~Sender();
