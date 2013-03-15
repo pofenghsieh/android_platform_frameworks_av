@@ -427,6 +427,11 @@ status_t TSPacketizer::packetize(
 
     const sp<Track> &track = mTracks.itemAt(trackIndex);
 
+#ifdef OMAP_ENHANCEMENT
+    int32_t discontinuity = 0;
+    accessUnit->meta()->findInt32("discontinuity", &discontinuity);
+#endif
+
     if (track->isH264() && (flags & PREPEND_SPS_PPS_TO_IDR_FRAMES)
             && IsIDR(accessUnit)) {
         // prepend codec specific data, i.e. SPS and PPS.
@@ -492,15 +497,6 @@ status_t TSPacketizer::packetize(
     }
 
     sp<ABuffer> buffer = new ABuffer(numTSPackets * 188);
-
-#ifdef OMAP_ENHANCEMENT
-    int32_t is_csd = 0;
-    if (accessUnit->meta()->findInt32("csd", &is_csd) && is_csd) {
-        buffer->meta()->setInt32("csd", 1);
-    }
-    int32_t discontinuity = 0;
-    accessUnit->meta()->findInt32("discontinuity", &discontinuity);
-#endif
 
     uint8_t *packetDataStart = buffer->data();
 

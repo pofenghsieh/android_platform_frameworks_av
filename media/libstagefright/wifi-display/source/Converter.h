@@ -119,6 +119,7 @@ private:
 #ifdef OMAP_ENHANCEMENT
     int32_t mChannelCount;
     bool mDiscontinuityQueued;
+    bool mLastIsCSD;
 #endif
 
     status_t initEncoder();

@@ -89,7 +89,8 @@ Converter::Converter(
       mIsPCMAudio(false),
       mNeedToManuallyPrependSPSPPS(false),
       mDoMoreWorkPending(false),
-      mDiscontinuityQueued(discontinuityQueued)
+      mDiscontinuityQueued(discontinuityQueued),
+      mLastIsCSD(false)
 #if ENABLE_SILENCE_DETECTION
       ,mFirstSilentFrameUs(-1ll)
       ,mInSilentMode(false)
@@ -732,25 +733,28 @@ status_t Converter::doMoreWork() {
                    mEncoderOutputBuffers.itemAt(bufferIndex)->base() + offset,
                    size);
 
-#ifdef OMAP_ENHANCEMENT
-            if (mIsVideo && mDiscontinuityQueued) {
-                mDiscontinuityQueued = false;
-                buffer->meta()->setInt32("discontinuity", 1);
-            }
-#endif
 
             if (flags & MediaCodec::BUFFER_FLAG_CODECCONFIG) {
                 mOutputFormat->setBuffer("csd-0", buffer);
 #ifdef OMAP_ENHANCEMENT
                 if (mIsVideo) {
-                    buffer->meta()->setInt32("csd", 1);
-                    sp<AMessage> notify = mNotify->dup();
-                    notify->setInt32("what", kWhatAccessUnit);
-                    notify->setBuffer("accessUnit", buffer);
-                    notify->post();
+                    mLastIsCSD = true;
                 }
 #endif
             } else {
+#ifdef OMAP_ENHANCEMENT
+                if (mIsVideo) {
+                    if (mDiscontinuityQueued) {
+                        mDiscontinuityQueued = false;
+                        buffer->meta()->setInt32("discontinuity", 1);
+                    }
+
+                    if (mLastIsCSD) {
+                        mLastIsCSD = false;
+                        buffer->meta()->setInt32("csdPrepended", 1);
+                    }
+                }
+#endif
                 sp<AMessage> notify = mNotify->dup();
 
                 notify->setInt32("what", kWhatAccessUnit);

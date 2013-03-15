@@ -1095,6 +1095,15 @@ status_t WifiDisplaySource::PlaybackSession::packetizeAccessUnit(
         && track->converter()->needToManuallyPrependSPSPPS()
         && IsIDR(accessUnit);
 
+#ifdef OMAP_ENHANCEMENT
+    if (!manuallyPrependSPSPPS) {
+        int32_t csdPrepended = 0;
+        manuallyPrependSPSPPS = accessUnit->meta()->findInt32("csdPrepended", &csdPrepended)
+                && csdPrepended
+                && IsIDRwithoutSPSPPS(accessUnit);
+    }
+#endif
+
     if (mHDCP != NULL && !track->isAudio()) {
         isHDCPEncrypted = true;
 

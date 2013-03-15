@@ -68,6 +68,10 @@ bool GetMPEGAudioFrameSize(
         int *out_sampling_rate = NULL, int *out_channels = NULL,
         int *out_bitrate = NULL, int *out_num_samples = NULL);
 
+#ifdef OMAP_ENHANCEMENT
+bool IsIDRwithoutSPSPPS(const sp<ABuffer> &buffer);
+#endif
+
 }  // namespace android
 
 #endif  // AVC_UTILS_H_

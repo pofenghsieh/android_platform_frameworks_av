@@ -329,6 +329,24 @@ bool IsIDR(const sp<ABuffer> &buffer) {
     return foundIDR;
 }
 
+#ifdef OMAP_ENHANCEMENT
+bool IsIDRwithoutSPSPPS(const sp<ABuffer> &buffer) {
+    const uint8_t *data = buffer->data();
+    size_t size = buffer->size();
+
+    const uint8_t *nalStart;
+    size_t nalSize;
+    if (getNextNALUnit(&data, &size, &nalStart, &nalSize, true) == OK) {
+        CHECK_GT(nalSize, 0u);
+        if ((nalStart[0] & 0x1f) == 5) {
+            return true;
+        }
+    }
+
+    return false;
+}
+#endif
+
 bool IsAVCReferenceFrame(const sp<ABuffer> &accessUnit) {
     const uint8_t *data = accessUnit->data();
     size_t size = accessUnit->size();
