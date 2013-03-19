@@ -161,7 +161,7 @@ void CaptureDevice::onMessageReceived(const sp<AMessage> &msg) {
                 if (err == OK) {
                     mFrameAvailableListener->onFrameAvailable(bufferIndex);
                 } else {
-                    mFrameAvailableListener->onCaptureError(err);
+                    mFrameAvailableListener->onCaptureError(bufferIndex, err);
                 }
             }
             break;

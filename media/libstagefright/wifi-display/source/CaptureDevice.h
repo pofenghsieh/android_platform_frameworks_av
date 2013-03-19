@@ -32,7 +32,7 @@ class IDSSWBHal;
 struct CaptureDevice : public AHandler {
     struct FrameAvailableListener : RefBase {
         virtual void onFrameAvailable(int index) = 0;
-        virtual void onCaptureError(status_t error) = 0;
+        virtual void onCaptureError(int index, status_t error) = 0;
     };
 
     CaptureDevice();

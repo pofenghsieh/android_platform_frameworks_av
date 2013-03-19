@@ -72,8 +72,9 @@ struct CaptureSource::CaptureDeviceListener : public CaptureDevice::FrameAvailab
         msg->post();
     }
 
-    virtual void onCaptureError(status_t error) {
+    virtual void onCaptureError(int index, status_t error) {
         sp<AMessage> msg = new AMessage(kWhatCaptureError, mHandlerId);
+        msg->setInt32("index", index);
         msg->setInt32("error", error);
         msg->post();
     }
@@ -225,9 +226,19 @@ void CaptureSource::onMessageReceived(const sp<AMessage> &msg) {
 
             // A capture may fail if all buffers are canceled during shutdown.
             if (!mShutdown) {
-                CHECK(msg->findInt32("error", &mError));
+                int err;
+                CHECK(msg->findInt32("error", &err));
 
-                ALOGE("Failed to capture buffer (%d)", mError);
+                ALOGE("Failed to capture buffer (%d)", err);
+
+                // Ignore the error and resubmit the buffer for capture.
+                int index;
+                dequeueCaptureDeviceBuffer_l(msg, &index);
+                mError = queueCaptureDeviceBuffer_l(index);
+
+                if (mError == OK) {
+                    mCaptureDevice->postDequeueBuffer();
+                }
             }
             break;
         }
