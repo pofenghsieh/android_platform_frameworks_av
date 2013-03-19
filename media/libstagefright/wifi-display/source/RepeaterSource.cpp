@@ -20,7 +20,12 @@ RepeaterSource::RepeaterSource(const sp<MediaSource> &source, double rateHz)
       mResult(OK),
       mLastBufferUpdateUs(-1ll),
       mStartTimeUs(-1ll),
+#ifndef OMAP_ENHANCEMENT
       mFrameCount(0) {
+#else
+      mFrameCount(0),
+      mStopPending(false) {
+#endif
 }
 
 RepeaterSource::~RepeaterSource() {
@@ -60,6 +65,28 @@ status_t RepeaterSource::stop() {
 
     ALOGV("stopping");
 
+#ifdef OMAP_ENHANCEMENT
+    {
+        Mutex::Autolock autoLock(mLock);
+        mStopPending = true;
+        if (mBuffer != NULL) {
+            ALOGV("releasing mbuf %p", mBuffer);
+            mBuffer->release();
+            mBuffer = NULL;
+        }
+    }
+
+    status_t err = mSource->stop();
+
+    if (mLooper != NULL) {
+        mLooper->stop();
+        mLooper.clear();
+
+        mReflector.clear();
+    }
+
+    mStopPending = false;
+#else
     if (mLooper != NULL) {
         mLooper->stop();
         mLooper.clear();
@@ -74,6 +101,7 @@ status_t RepeaterSource::stop() {
     }
 
     status_t err = mSource->stop();
+#endif
 
     ALOGV("stopped");
 
@@ -170,7 +198,19 @@ void RepeaterSource::onMessageReceived(const sp<AMessage> &msg) {
                 mBuffer->release();
                 mBuffer = NULL;
             }
+
+#ifdef OMAP_ENHANCEMENT
+            if (mStopPending) {
+                if (buffer != NULL) {
+                    buffer->release();
+                }
+            } else {
+                mBuffer = buffer;
+            }
+#else
             mBuffer = buffer;
+#endif
+
             mResult = err;
             mLastBufferUpdateUs = ALooper::GetNowUs();
 

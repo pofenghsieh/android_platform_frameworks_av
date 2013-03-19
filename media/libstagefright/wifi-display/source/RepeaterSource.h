@@ -54,6 +54,10 @@ private:
     int64_t mStartTimeUs;
     int32_t mFrameCount;
 
+#ifdef OMAP_ENHANCEMENT
+    bool mStopPending;
+#endif
+
     void postRead();
 
     DISALLOW_EVIL_CONSTRUCTORS(RepeaterSource);
