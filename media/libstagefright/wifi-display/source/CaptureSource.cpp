@@ -101,7 +101,8 @@ CaptureSource::CaptureSource(sp<SurfaceMediaSource> mediaSource)
     mHeight = temp;
 
     mBufferQueue = mMediaSource->getBufferQueue();
-    mBufferQueue->setConsumerUsageBits(GRALLOC_USAGE_HW_VIDEO_ENCODER | GRALLOC_USAGE_HW_RENDER);
+    mBufferQueue->setConsumerUsageBits(GRALLOC_USAGE_HW_VIDEO_ENCODER |
+            GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_SW_WRITE_RARELY);
     mBufferQueue->setConsumerName(String8("WFD SMS"));
     mBufferQueue->setDefaultBufferFormat(mFormat);
 
