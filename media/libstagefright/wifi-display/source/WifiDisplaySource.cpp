@@ -1590,7 +1590,11 @@ status_t WifiDisplaySource::onPlayRequest(
         return err;
     }
 
+#ifdef OMAP_ENHANCEMENT
+    if ((mState == PAUSED_TO_PLAYING) || (mState == PAUSED)) {
+#else
     if (mState == PAUSED_TO_PLAYING) {
+#endif
         mState = PLAYING;
         return OK;
     }
@@ -1618,7 +1622,11 @@ status_t WifiDisplaySource::onPauseRequest(
 
     ALOGI("Received PAUSE request.");
 
+#ifdef OMAP_ENHANCEMENT
+    if ((mState != PLAYING_TO_PAUSED) && (mState != PLAYING)) {
+#else
     if (mState != PLAYING_TO_PAUSED) {
+#endif
         return INVALID_OPERATION;
     }
 
