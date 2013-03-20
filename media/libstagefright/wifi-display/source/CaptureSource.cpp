@@ -91,7 +91,8 @@ CaptureSource::CaptureSource(sp<SurfaceMediaSource> mediaSource)
       mWidth(0),
       mHeight(0),
       mFormat(HAL_PIXEL_FORMAT_TI_NV12),
-      mMediaSource(mediaSource) {
+      mMediaSource(mediaSource),
+      mBufferCount(0) {
 
     sp<MetaData> sourceFormat = mMediaSource->getFormat();
 
@@ -166,6 +167,15 @@ status_t CaptureSource::stop() {
         mShutdown = true;
 
         cancelCaptureDeviceBuffers_l();
+
+        // Wait until all buffers are dequeued from CaptureDevice
+        for (uint32_t i = 0; i < mBufferCount; ) {
+            if (mBufferSlots[i].mBufferState == BufferSlot::QUEUED_TO_CD) {
+                mDequeueCondition.wait(mLock);
+            } else {
+                i++;
+            }
+        }
     }
 
     mCaptureDevice->release();
@@ -257,17 +267,19 @@ void CaptureSource::onFrameAvailable(const sp<AMessage> &msg) {
         mError = queueMediaSourceBuffer_l(capturedBuffer);
     }
 
-    if (mError == OK) {
+    if (mShutdown) {
+        mDequeueCondition.signal();
+    } else if (mError == OK) {
         int emptyBuffer;
         mError = dequeueMediaSourceBuffer_l(&emptyBuffer);
         if (mError == OK) {
             mError = queueCaptureDeviceBuffer_l(emptyBuffer);
         }
-    }
 
-    if (mError == OK && !mShutdown) {
-        // TODO the post can be delayed if we want to throttle frame rate
-        mCaptureDevice->postDequeueBuffer();
+        if (mError == OK) {
+            // TODO the post can be delayed if we want to throttle frame rate
+            mCaptureDevice->postDequeueBuffer();
+        }
     }
 }
 
@@ -363,8 +375,8 @@ status_t CaptureSource::setupBufferQueue() {
         return err;
     }
 
-    uint32_t bufferCount = minUndequeuedBuffers + kInitalQueuedBuffers;
-    err = mBufferQueue->setBufferCount(bufferCount);
+    mBufferCount = minUndequeuedBuffers + kInitalQueuedBuffers;
+    err = mBufferQueue->setBufferCount(mBufferCount);
     if (err != OK) {
         ALOGE("Failed to set buffer count (%d)", err);
         return err;
@@ -372,7 +384,7 @@ status_t CaptureSource::setupBufferQueue() {
 
     // Pre-allocate the buffers. No need to take mLock since looper thread has not started yet.
     Vector<int> bufferIndices;
-    for (uint32_t i = 0; i < bufferCount; i++) {
+    for (uint32_t i = 0; i < mBufferCount; i++) {
         int bufferIndex;
         err = dequeueMediaSourceBuffer_l(&bufferIndex);
         if (err != OK) {
@@ -394,7 +406,7 @@ status_t CaptureSource::setupBufferQueue() {
 
     // Return remaining buffers back to SMS.
     if (err == OK) {
-        for (uint32_t i = kInitalQueuedBuffers; i < bufferCount; i++) {
+        for (uint32_t i = kInitalQueuedBuffers; i < mBufferCount; i++) {
             BufferSlot *slot = &mBufferSlots[bufferIndices[i]];
             mBufferQueue->cancelBuffer(bufferIndices[i], Fence::NO_FENCE);
             slot->mBufferState = BufferSlot::QUEUED_TO_SMS;

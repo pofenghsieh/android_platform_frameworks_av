@@ -125,6 +125,7 @@ private:
     status_t mError;
 
     Mutex mLock;
+    Condition mDequeueCondition;
     sp<ALooper> mLooper;
     sp< AHandlerReflector<CaptureSource> > mReflector;
 
@@ -140,6 +141,7 @@ private:
     sp<BufferQueue> mBufferQueue;
 
     BufferSlot mBufferSlots[BufferQueue::NUM_BUFFER_SLOTS];
+    uint32_t mBufferCount;
 
     DISALLOW_EVIL_CONSTRUCTORS(CaptureSource);
 };
