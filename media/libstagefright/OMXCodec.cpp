@@ -654,6 +654,12 @@ status_t OMXCodec::configureCodec(const sp<MetaData> &meta) {
 
     initOutputFormat(meta);
 
+#ifdef OMAP_ENHANCEMENT
+    if (mState == ERROR) {
+        return ERROR_OUT_OF_RANGE;
+    }
+#endif
+
     if ((mFlags & kClientNeedsFramebuffer)
             && !strncmp(mComponentName, "OMX.SEC.", 8)) {
         // This appears to no longer be needed???
@@ -2678,6 +2684,12 @@ void OMXCodec::onEvent(OMX_EVENTTYPE event, OMX_U32 data1, OMX_U32 data2) {
                 sp<MetaData> oldOutputFormat = mOutputFormat;
                 initOutputFormat(mSource->getFormat());
 
+#ifdef OMAP_ENHANCEMENT
+                if (mState == ERROR) {
+                    break;
+                }
+#endif
+
                 if (data2 == OMX_IndexConfigCommonOutputCrop &&
                     formatHasNotablyChanged(oldOutputFormat, mOutputFormat)) {
                     mOutputPortSettingsHaveChanged = true;
@@ -2764,6 +2776,12 @@ void OMXCodec::onCmdComplete(OMX_COMMANDTYPE cmd, OMX_U32 data) {
 
                 sp<MetaData> oldOutputFormat = mOutputFormat;
                 initOutputFormat(mSource->getFormat());
+
+#ifdef OMAP_ENHANCEMENT
+                if (mState == ERROR) {
+                    break;
+                }
+#endif
 
                 // Don't notify clients if the output port settings change
                 // wasn't of importance to them, i.e. it may be that just the
@@ -4796,6 +4814,13 @@ void OMXCodec::initOutputFormat(const sp<MetaData> &inputFormat) {
                         video_def->nFrameWidth, video_def->nFrameHeight);
 
                 if (err == OK) {
+#ifdef OMAP_ENHANCEMENT
+                    if (!rect.nWidth || !rect.nHeight) {
+                        mSource->setNoErrorFromDecoder(false);
+                        setState(ERROR);
+                        return;
+                    }
+#endif
                     CHECK_GE(rect.nLeft, 0);
                     CHECK_GE(rect.nTop, 0);
                     CHECK_GE(rect.nWidth, 0u);

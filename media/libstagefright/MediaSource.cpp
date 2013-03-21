@@ -20,7 +20,8 @@ namespace android {
 
 #ifdef OMAP_ENHANCEMENT
 MediaSource::MediaSource():
-    mAudioIsNotValid(false){}
+    mAudioIsNotValid(false),
+    mNoErrorFromDecoder(true) {}
 #else
 MediaSource::MediaSource() {}
 #endif
@@ -30,11 +31,17 @@ MediaSource::~MediaSource() {}
 ////////////////////////////////////////////////////////////////////////////////
 
 #ifdef OMAP_ENHANCEMENT
-void MediaSource::setAudioIsNotValid(bool flag){
+void MediaSource::setAudioIsNotValid(bool flag) {
     mAudioIsNotValid = flag;
 }
-bool MediaSource::getAudioIsNotValid(){
+bool MediaSource::getAudioIsNotValid() {
     return mAudioIsNotValid;
+}
+void MediaSource::setNoErrorFromDecoder(bool flag) {
+    mNoErrorFromDecoder = flag;
+}
+bool MediaSource::getNoErrorFromDecoder() {
+    return mNoErrorFromDecoder;
 }
 #endif
 

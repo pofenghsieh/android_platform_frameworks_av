@@ -38,6 +38,8 @@ struct MediaSource : public virtual RefBase {
 #ifdef OMAP_ENHANCEMENT
     void setAudioIsNotValid(bool flag);
     bool getAudioIsNotValid();
+    void setNoErrorFromDecoder(bool flag);
+    bool getNoErrorFromDecoder();
 #endif
     // To be called before any other methods on this object, except
     // getFormat().
@@ -125,6 +127,7 @@ private:
 
 #ifdef OMAP_ENHANCEMENT
     bool mAudioIsNotValid;
+    bool mNoErrorFromDecoder;
 public:
     virtual status_t setParameter(const String8 &key, const String8 &value){
         return OK;
