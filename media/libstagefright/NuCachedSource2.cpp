@@ -449,15 +449,23 @@ void NuCachedSource2::restartPrefetcherIfNecessary_l(
 #endif
 
 #ifdef OMAP_ENHANCEMENT
+    size_t maxBytes = 0;
+    size_t actualBytes = 0;
     if (mMinAccessPos - mCacheOffset > kGrayArea) {
-        size_t maxBytes = mMinAccessPos - mCacheOffset - kGrayArea;
-        size_t actualBytes = mCache->releaseFromStart(maxBytes);
+        maxBytes = mMinAccessPos - mCacheOffset - kGrayArea;
+    } else if (mCache->totalSize() >= mHighwaterThresholdBytes) {
+        if (mMinAccessPos <= mCacheOffset && mMaxAccessPos > kGrayArea) {
+            maxBytes = mMaxAccessPos - mCacheOffset - kGrayArea;
+        } else if (mCacheOffset + mCache->totalSize() - mMaxAccessPos < mLowwaterThresholdBytes) {
+            maxBytes = mCache->totalSize() - mHighwaterThresholdBytes;
+        }
+    }
+    if (maxBytes > 0) {
+        actualBytes = mCache->releaseFromStart(maxBytes);
         mCacheOffset += actualBytes;
-    } else if (mCache->totalSize() >= mHighwaterThresholdBytes
-               && mCacheOffset + mCache->totalSize() - mMaxAccessPos < mLowwaterThresholdBytes) {
-        size_t maxBytes = mCache->totalSize() - mHighwaterThresholdBytes;
-        size_t actualBytes = mCache->releaseFromStart(maxBytes);
-        mCacheOffset += actualBytes;
+        if (mMinAccessPos < mCacheOffset) {
+            mMinAccessPos = mCacheOffset;
+        }
     }
 #endif
 
@@ -657,7 +665,11 @@ status_t NuCachedSource2::seekInternal_l(off64_t offset) {
     ALOGI("new range: offset= %lld", offset);
 
     mCacheOffset = offset;
-
+#ifdef OMAP_ENHANCEMENT
+    if (mMinAccessPos < mCacheOffset) {
+        mMinAccessPos = mCacheOffset;
+    }
+#endif
     size_t totalSize = mCache->totalSize();
     CHECK_EQ(mCache->releaseFromStart(totalSize), totalSize);
 
