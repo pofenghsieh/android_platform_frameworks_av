@@ -669,6 +669,8 @@ status_t WifiDisplaySink::onReceiveTeardownResponse(
 
     mNetSession->stop();
 
+    removeRtspStateListener();
+
     sp<AMessage> req = new AMessage(kWhatStop, id());
     req->post();
 
