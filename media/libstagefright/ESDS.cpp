@@ -30,7 +30,13 @@ ESDS::ESDS(const void *data, size_t size)
       mInitCheck(NO_INIT),
       mDecoderSpecificOffset(0),
       mDecoderSpecificLength(0),
+#ifdef OMAP_ENHANCEMENT
+      mObjectTypeIndication(0),
+      mProfileLevelIndication(0),
+      mHasProfileLevelIndication(false) {
+#else
       mObjectTypeIndication(0) {
+#endif
     memcpy(mData, data, size);
 
     mInitCheck = parse();
@@ -54,6 +60,18 @@ status_t ESDS::getObjectTypeIndication(uint8_t *objectTypeIndication) const {
 
     return OK;
 }
+
+#ifdef OMAP_ENHANCEMENT
+status_t ESDS::getProfileLeveIndication(uint8_t *profileLevelIndication) const {
+    if (mInitCheck != OK) {
+        return mInitCheck;
+    }
+
+    *profileLevelIndication = mProfileLevelIndication;
+
+    return mHasProfileLevelIndication ? OK : ERROR_MALFORMED;
+}
+#endif
 
 status_t ESDS::getCodecSpecificInfo(const void **data, size_t *size) const {
     if (mInitCheck != OK) {
@@ -220,8 +238,35 @@ status_t ESDS::parseDecoderConfigDescriptor(size_t offset, size_t size) {
     mDecoderSpecificOffset = sub_offset;
     mDecoderSpecificLength = sub_size;
 
+#ifdef OMAP_ENHANCEMENT
+    if (sub_size < 5) {
+        return OK;
+    }
+
+    err = parseProfileLevel(&sub_offset, &sub_size);
+    return err;
+#else
+    return OK;
+#endif
+}
+
+#ifdef OMAP_ENHANCEMENT
+status_t ESDS::parseProfileLevel(size_t *offset, size_t *size) {
+    uint8_t VOS_SC[4] = {'\x00','\x00','\x01','\xB0'};
+    mHasProfileLevelIndication = false;
+    if (!memcmp(VOS_SC, mData + *offset, 4)) {
+        *offset += 4;
+        *size -= 4;
+
+        mProfileLevelIndication = mData[*offset];
+        mHasProfileLevelIndication = true;
+
+        *offset += 1;
+        *size -= 1;
+    }
     return OK;
 }
+#endif
 
 }  // namespace android
 

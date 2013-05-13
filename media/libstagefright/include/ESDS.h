@@ -33,6 +33,9 @@ public:
 
     status_t getObjectTypeIndication(uint8_t *objectTypeIndication) const;
     status_t getCodecSpecificInfo(const void **data, size_t *size) const;
+#ifdef OMAP_ENHANCEMENT
+    status_t getProfileLeveIndication(uint8_t *profileLevelIndication) const;
+#endif
 
 private:
     enum {
@@ -49,6 +52,10 @@ private:
     size_t mDecoderSpecificOffset;
     size_t mDecoderSpecificLength;
     uint8_t mObjectTypeIndication;
+#ifdef OMAP_ENHANCEMENT
+    uint8_t mProfileLevelIndication;
+    bool mHasProfileLevelIndication;
+#endif
 
     status_t skipDescriptorHeader(
             size_t offset, size_t size,
@@ -57,6 +64,9 @@ private:
     status_t parse();
     status_t parseESDescriptor(size_t offset, size_t size);
     status_t parseDecoderConfigDescriptor(size_t offset, size_t size);
+#ifdef OMAP_ENHANCEMENT
+    status_t parseProfileLevel(size_t *offset, size_t *size);
+#endif
 
     ESDS(const ESDS &);
     ESDS &operator=(const ESDS &);

@@ -1328,12 +1328,16 @@ status_t MPEG4Extractor::parseChunk(off64_t *offset, int depth) {
             CHECK(mLastTrack->meta->findCString(kKeyMIMEType, &mime));
             if (!strcmp(mime,MEDIA_MIMETYPE_VIDEO_MPEG4)) {
                 ESDS esds(&buffer[4], chunk_data_size - 4);
-                uint8_t objectTypeIndication;
+                uint8_t objectTypeIndication, profileLevelIndication;
                 if (OK == esds.getObjectTypeIndication(&objectTypeIndication)) {
                     if (IS_MP4_MPEG2(objectTypeIndication)) {
                         ALOGV("Mpeg2 Clip. Setting MIME type to MPEG2");
                         mLastTrack->meta->setCString(kKeyMIMEType, MEDIA_MIMETYPE_VIDEO_MPEG2);
                     }
+                }
+                // If there is data about MPEG4 Video Profile@Level, sets kKeyMPEG4ProfileLevel
+                if (OK == esds.getProfileLeveIndication(&profileLevelIndication)) {
+                    mFileMetaData->setInt32(kKeyMPEG4ProfileLevel, profileLevelIndication);
                 }
             }
 #endif

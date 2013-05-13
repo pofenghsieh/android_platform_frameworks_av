@@ -1627,14 +1627,18 @@ status_t AwesomePlayer::initVideoDecoder(uint32_t flags) {
     int32_t isGeneric = 0;
     bool hasSourceType = fileMetadata->findInt32(kKeyGenericMPEG4, &isGeneric);
     bool have_delta_table = true;
+    int32_t profileLevel = 0;
+    bool hasMPEG4ProfileLevel = fileMetadata->findInt32(kKeyMPEG4ProfileLevel, &profileLevel);
+    bool isSimpleProfile = hasMPEG4ProfileLevel ? !(profileLevel & 0xF0) : false;
     if (!strcasecmp("video/mp4", mExtractorType)
             && hasSourceType && isGeneric != 0) {
         struct MediaSourceWithHaveDeltaTable *msdt =
                 static_cast<MediaSourceWithHaveDeltaTable*>(mVideoTrack.get());
         have_delta_table = msdt->haveDeltaTable();
     }
-    if ((!have_delta_table) || isAvailable &&
-        (!strcasecmp(MEDIA_MIMETYPE_CONTAINER_AVI, mExtractorType))) {
+    if ((!isSimpleProfile) &&
+         ((!have_delta_table) || isAvailable &&
+          (!strcasecmp(MEDIA_MIMETYPE_CONTAINER_AVI, mExtractorType)))) {
             flags |= OMXCodec::kEnableTimeStampInDecodeOrder;
     }
 #endif

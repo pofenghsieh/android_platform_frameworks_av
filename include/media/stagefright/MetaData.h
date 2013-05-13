@@ -183,6 +183,10 @@ enum {
 enum {
     kKeyGenericMPEG4    = 'gnmp',
 };
+
+enum {
+    kKeyMPEG4ProfileLevel = 'm4pl',
+};
 #endif
 
 class MetaData : public RefBase {
