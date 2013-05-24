@@ -910,7 +910,12 @@ void AwesomePlayer::onStreamDone() {
 
     if (mStreamDoneStatus != ERROR_END_OF_STREAM) {
 #ifdef OMAP_ENHANCEMENT
-        if (mVideoTrack->getNoErrorFromDecoder()) {
+        //If we get here with video that contains unsupported "mpeg" audio
+        //stream, we skip this stream and continue to play only video.
+        //For files that contain only video/audio stream or when error from
+        //video decoder is received this block is ignored.
+        if (mVideoTrack != NULL && mAudioTrack != NULL &&
+                    mVideoTrack->getNoErrorFromDecoder()) {
             sp<MetaData> meta = mAudioTrack->getFormat();
             const char *mime;
             bool success = meta->findCString(kKeyMIMEType, &mime);
