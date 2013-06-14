@@ -1251,6 +1251,18 @@ status_t MPEG4Extractor::parseChunk(off64_t *offset, int depth) {
 
         case FOURCC('s', 't', 's', 's'):
         {
+#ifdef OMAP_ENHANCEMENT
+            // The stss atom indicates which video frames can be completely
+            // decoded on their own, without any information from other video
+            // frames, thus making the frames safe to jump to randomly. So it
+            // should not be in an audio track descriptions.
+            const char *mime = 0;
+            CHECK(mLastTrack->meta->findCString(kKeyMIMEType, &mime));
+            if (!strncasecmp(mime, "audio/", 6)) {
+                *offset += chunk_size;
+                break;
+            }
+#endif
             status_t err =
                 mLastTrack->sampleTable->setSyncSampleParams(
                         data_offset, chunk_data_size);
