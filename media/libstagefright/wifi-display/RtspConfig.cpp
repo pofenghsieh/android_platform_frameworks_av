@@ -544,6 +544,8 @@ AString RtspConfig::getDeviceName() {
                     name = "Tablet2.5";
                 }
             }
+        } else if (!strcasecmp("panda5", val)) {
+            name = "Panda5";
         }
     }
     return name;
