@@ -2628,11 +2628,8 @@ bool AudioFlinger::PlaybackThread::threadLoop()
             // put audio hardware into standby after short delay
             if (CC_UNLIKELY((!mActiveTracks.size() && systemTime() > standbyTime) ||
                         isSuspended())) {
-#ifdef OMAP_ENHANCEMENT
-                if (!mStandby && !mFmInplay) {
-#else
+
                 if (!mStandby) {
-#endif
                     threadLoop_standby();
 
                     mStandby = true;
