@@ -193,18 +193,32 @@ public:
     static status_t setPhoneState(audio_mode_t state);
     static status_t setForceUse(audio_policy_force_use_t usage, audio_policy_forced_cfg_t config);
     static audio_policy_forced_cfg_t getForceUse(audio_policy_force_use_t usage);
+#ifdef OMAP_MULTIZONE_AUDIO
+    static audio_io_handle_t getOutput(audio_stream_type_t stream,
+                                        uint32_t samplingRate = 0,
+                                        audio_format_t format = AUDIO_FORMAT_DEFAULT,
+                                        audio_channel_mask_t channelMask = AUDIO_CHANNEL_OUT_STEREO,
+                                        audio_output_flags_t flags = AUDIO_OUTPUT_FLAG_NONE,
+                                        int session = 0);
+#else
     static audio_io_handle_t getOutput(audio_stream_type_t stream,
                                         uint32_t samplingRate = 0,
                                         audio_format_t format = AUDIO_FORMAT_DEFAULT,
                                         audio_channel_mask_t channelMask = AUDIO_CHANNEL_OUT_STEREO,
                                         audio_output_flags_t flags = AUDIO_OUTPUT_FLAG_NONE);
+#endif
     static status_t startOutput(audio_io_handle_t output,
                                 audio_stream_type_t stream,
                                 int session = 0);
     static status_t stopOutput(audio_io_handle_t output,
                                audio_stream_type_t stream,
                                int session = 0);
+#ifdef OMAP_MULTIZONE_AUDIO
+    static void releaseOutput(audio_io_handle_t output,
+                              int session = 0);
+#else
     static void releaseOutput(audio_io_handle_t output);
+#endif
     static audio_io_handle_t getInput(audio_source_t inputSource,
                                     uint32_t samplingRate = 0,
                                     audio_format_t format = AUDIO_FORMAT_DEFAULT,
@@ -212,7 +226,12 @@ public:
                                     int sessionId = 0);
     static status_t startInput(audio_io_handle_t input);
     static status_t stopInput(audio_io_handle_t input);
+#ifdef OMAP_MULTIZONE_AUDIO
+    static void releaseInput(audio_io_handle_t input,
+                             int session = 0);
+#else
     static void releaseInput(audio_io_handle_t input);
+#endif
     static status_t initStreamVolume(audio_stream_type_t stream,
                                       int indexMin,
                                       int indexMax);
@@ -238,6 +257,20 @@ public:
     // clear stream to output mapping cache (gStreamOutputMap)
     // and output configuration cache (gOutputs)
     static void clearAudioConfigCache();
+
+#ifdef OMAP_MULTIZONE_AUDIO
+    static audio_devices_t getPrimaryDevices();
+    static audio_devices_t getZoneSupportedDevices(audio_zones_t zone);
+    static status_t setZoneDevices(audio_zones_t zone, audio_devices_t devices);
+    static audio_devices_t getZoneDevices(audio_zones_t zone);
+    static status_t setSessionZones(int session, audio_zones_t zones);
+    static audio_zones_t getSessionZones(int session);
+
+    static status_t setZoneVolume(audio_zones_t zone, float volume);
+    static float getZoneVolume(audio_zones_t zone);
+    static status_t setSessionVolume(int session, audio_zones_t zones, float volume);
+    static float getSessionVolume(int session, audio_zones_t zone);
+#endif
 
     static const sp<IAudioPolicyService>& get_audio_policy_service();
 

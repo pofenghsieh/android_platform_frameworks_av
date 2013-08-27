@@ -420,7 +420,11 @@ void AudioFlinger::PlaybackThread::Track::destroy()
                     addBatteryData(IMediaPlayerService::kBatteryDataAudioFlingerStop);
 #endif
                 }
+#ifdef OMAP_MULTIZONE_AUDIO
+                AudioSystem::releaseOutput(thread->id(), mSessionId);
+#else
                 AudioSystem::releaseOutput(thread->id());
+#endif
             }
             Mutex::Autolock _l(thread->mLock);
             PlaybackThread *playbackThread = (PlaybackThread *)thread.get();
@@ -1779,7 +1783,11 @@ void AudioFlinger::RecordThread::RecordTrack::destroy()
             if (mState == ACTIVE || mState == RESUMING) {
                 AudioSystem::stopInput(thread->id());
             }
+#ifdef OMAP_MULTIZONE_AUDIO
+            AudioSystem::releaseInput(thread->id(), mSessionId);
+#else
             AudioSystem::releaseInput(thread->id());
+#endif
             Mutex::Autolock _l(thread->mLock);
             RecordThread *recordThread = (RecordThread *) thread.get();
             recordThread->destroyTrack_l(this);

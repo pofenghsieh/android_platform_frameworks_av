@@ -581,15 +581,28 @@ audio_policy_forced_cfg_t AudioSystem::getForceUse(audio_policy_force_use_t usag
 }
 
 
+#ifdef OMAP_MULTIZONE_AUDIO
+audio_io_handle_t AudioSystem::getOutput(audio_stream_type_t stream,
+                                    uint32_t samplingRate,
+                                    audio_format_t format,
+                                    audio_channel_mask_t channelMask,
+                                    audio_output_flags_t flags,
+                                    int session)
+#else
 audio_io_handle_t AudioSystem::getOutput(audio_stream_type_t stream,
                                     uint32_t samplingRate,
                                     audio_format_t format,
                                     audio_channel_mask_t channelMask,
                                     audio_output_flags_t flags)
+#endif
 {
     const sp<IAudioPolicyService>& aps = AudioSystem::get_audio_policy_service();
     if (aps == 0) return 0;
+#ifdef OMAP_MULTIZONE_AUDIO
+    return aps->getOutput(stream, samplingRate, format, channelMask, flags, session);
+#else
     return aps->getOutput(stream, samplingRate, format, channelMask, flags);
+#endif
 }
 
 status_t AudioSystem::startOutput(audio_io_handle_t output,
@@ -610,11 +623,20 @@ status_t AudioSystem::stopOutput(audio_io_handle_t output,
     return aps->stopOutput(output, stream, session);
 }
 
+#ifdef OMAP_MULTIZONE_AUDIO
+void AudioSystem::releaseOutput(audio_io_handle_t output,
+                                int session)
+#else
 void AudioSystem::releaseOutput(audio_io_handle_t output)
+#endif
 {
     const sp<IAudioPolicyService>& aps = AudioSystem::get_audio_policy_service();
     if (aps == 0) return;
+#ifdef OMAP_MULTIZONE_AUDIO
+    aps->releaseOutput(output, session);
+#else
     aps->releaseOutput(output);
+#endif
 }
 
 audio_io_handle_t AudioSystem::getInput(audio_source_t inputSource,
@@ -642,11 +664,20 @@ status_t AudioSystem::stopInput(audio_io_handle_t input)
     return aps->stopInput(input);
 }
 
+#ifdef OMAP_MULTIZONE_AUDIO
+void AudioSystem::releaseInput(audio_io_handle_t input,
+                               int session)
+#else
 void AudioSystem::releaseInput(audio_io_handle_t input)
+#endif
 {
     const sp<IAudioPolicyService>& aps = AudioSystem::get_audio_policy_service();
     if (aps == 0) return;
+#ifdef OMAP_MULTIZONE_AUDIO
+    aps->releaseInput(input, session);
+#else
     aps->releaseInput(input);
+#endif
 }
 
 status_t AudioSystem::initStreamVolume(audio_stream_type_t stream,
@@ -770,6 +801,78 @@ void AudioSystem::clearAudioConfigCache()
     ALOGV("clearAudioConfigCache()");
     gOutputs.clear();
 }
+
+#ifdef OMAP_MULTIZONE_AUDIO
+audio_devices_t AudioSystem::getPrimaryDevices()
+{
+    const sp<IAudioPolicyService>& aps = AudioSystem::get_audio_policy_service();
+    if (aps == 0) return PERMISSION_DENIED;
+    return aps->getPrimaryDevices();
+}
+
+audio_devices_t AudioSystem::getZoneSupportedDevices(audio_zones_t zone)
+{
+    const sp<IAudioPolicyService>& aps = AudioSystem::get_audio_policy_service();
+    if (aps == 0) return PERMISSION_DENIED;
+    return aps->getZoneSupportedDevices(zone);
+}
+
+status_t AudioSystem::setZoneDevices(audio_zones_t zone, audio_devices_t devices)
+{
+    const sp<IAudioPolicyService>& aps = AudioSystem::get_audio_policy_service();
+    if (aps == 0) return PERMISSION_DENIED;
+    return aps->setZoneDevices(zone, devices);
+}
+
+audio_devices_t AudioSystem::getZoneDevices(audio_zones_t zone)
+{
+    const sp<IAudioPolicyService>& aps = AudioSystem::get_audio_policy_service();
+    if (aps == 0) return AUDIO_DEVICE_NONE;
+    return aps->getZoneDevices(zone);
+}
+
+status_t AudioSystem::setSessionZones(int session, audio_zones_t zones)
+{
+    const sp<IAudioPolicyService>& aps = AudioSystem::get_audio_policy_service();
+    if (aps == 0) return PERMISSION_DENIED;
+    return aps->setSessionZones(session, zones);
+}
+
+audio_zones_t AudioSystem::getSessionZones(int session)
+{
+    const sp<IAudioPolicyService>& aps = AudioSystem::get_audio_policy_service();
+    if (aps == 0) return AUDIO_DEVICE_NONE;
+    return aps->getSessionZones(session);
+}
+
+status_t AudioSystem::setZoneVolume(audio_zones_t zone, float volume)
+{
+    const sp<IAudioPolicyService>& aps = AudioSystem::get_audio_policy_service();
+    if (aps == 0) return PERMISSION_DENIED;
+    return aps->setZoneVolume(zone, volume);
+}
+
+float AudioSystem::getZoneVolume(audio_zones_t zone)
+{
+    const sp<IAudioPolicyService>& aps = AudioSystem::get_audio_policy_service();
+    if (aps == 0) return PERMISSION_DENIED;
+    return aps->getZoneVolume(zone);
+}
+
+status_t AudioSystem::setSessionVolume(int session, audio_zones_t zones, float volume)
+{
+    const sp<IAudioPolicyService>& aps = AudioSystem::get_audio_policy_service();
+    if (aps == 0) return PERMISSION_DENIED;
+    return aps->setSessionVolume(session, zones, volume);
+}
+
+float AudioSystem::getSessionVolume(int session, audio_zones_t zone)
+{
+    const sp<IAudioPolicyService>& aps = AudioSystem::get_audio_policy_service();
+    if (aps == 0) return PERMISSION_DENIED;
+    return aps->getSessionVolume(session, zone);
+}
+#endif
 
 // ---------------------------------------------------------------------------
 

@@ -216,19 +216,33 @@ audio_policy_forced_cfg_t AudioPolicyService::getForceUse(audio_policy_force_use
     return mpAudioPolicy->get_force_use(mpAudioPolicy, usage);
 }
 
+#ifdef OMAP_MULTIZONE_AUDIO
+audio_io_handle_t AudioPolicyService::getOutput(audio_stream_type_t stream,
+                                    uint32_t samplingRate,
+                                    audio_format_t format,
+                                    audio_channel_mask_t channelMask,
+                                    audio_output_flags_t flags,
+                                    int session)
+#else
 audio_io_handle_t AudioPolicyService::getOutput(audio_stream_type_t stream,
                                     uint32_t samplingRate,
                                     audio_format_t format,
                                     audio_channel_mask_t channelMask,
                                     audio_output_flags_t flags)
+#endif
 {
     if (mpAudioPolicy == NULL) {
         return 0;
     }
     ALOGV("getOutput()");
     Mutex::Autolock _l(mLock);
+#ifdef OMAP_MULTIZONE_AUDIO
+    return mpAudioPolicy->get_output(mpAudioPolicy, stream, samplingRate, format, channelMask,
+                                        flags, session);
+#else
     return mpAudioPolicy->get_output(mpAudioPolicy, stream, samplingRate, format, channelMask,
                                         flags);
+#endif
 }
 
 status_t AudioPolicyService::startOutput(audio_io_handle_t output,
@@ -255,14 +269,23 @@ status_t AudioPolicyService::stopOutput(audio_io_handle_t output,
     return mpAudioPolicy->stop_output(mpAudioPolicy, output, stream, session);
 }
 
+#ifdef OMAP_MULTIZONE_AUDIO
+void AudioPolicyService::releaseOutput(audio_io_handle_t output,
+                                       int session)
+#else
 void AudioPolicyService::releaseOutput(audio_io_handle_t output)
+#endif
 {
     if (mpAudioPolicy == NULL) {
         return;
     }
     ALOGV("releaseOutput()");
     Mutex::Autolock _l(mLock);
+#ifdef OMAP_MULTIZONE_AUDIO
+    mpAudioPolicy->release_output(mpAudioPolicy, output, session);
+#else
     mpAudioPolicy->release_output(mpAudioPolicy, output);
+#endif
 }
 
 audio_io_handle_t AudioPolicyService::getInput(audio_source_t inputSource,
@@ -280,8 +303,14 @@ audio_io_handle_t AudioPolicyService::getInput(audio_source_t inputSource,
     }
     Mutex::Autolock _l(mLock);
     // the audio_in_acoustics_t parameter is ignored by get_input()
+#ifdef OMAP_MULTIZONE_AUDIO
+    audio_io_handle_t input = mpAudioPolicy->get_input(mpAudioPolicy, inputSource, samplingRate,
+                                                   format, channelMask, (audio_in_acoustics_t) 0,
+                                                   audioSession);
+#else
     audio_io_handle_t input = mpAudioPolicy->get_input(mpAudioPolicy, inputSource, samplingRate,
                                                    format, channelMask, (audio_in_acoustics_t) 0);
+#endif
 
     if (input == 0) {
         return input;
@@ -339,13 +368,22 @@ status_t AudioPolicyService::stopInput(audio_io_handle_t input)
     return mpAudioPolicy->stop_input(mpAudioPolicy, input);
 }
 
+#ifdef OMAP_MULTIZONE_AUDIO
+void AudioPolicyService::releaseInput(audio_io_handle_t input,
+                                      int session)
+#else
 void AudioPolicyService::releaseInput(audio_io_handle_t input)
+#endif
 {
     if (mpAudioPolicy == NULL) {
         return;
     }
     Mutex::Autolock _l(mLock);
+#ifdef OMAP_MULTIZONE_AUDIO
+    mpAudioPolicy->release_input(mpAudioPolicy, input, session);
+#else
     mpAudioPolicy->release_input(mpAudioPolicy, input);
+#endif
 
     ssize_t index = mInputs.indexOfKey(input);
     if (index < 0) {
@@ -541,6 +579,163 @@ status_t AudioPolicyService::queryDefaultPreProcessing(int audioSession,
     *count = effects.size();
     return status;
 }
+
+#ifdef OMAP_MULTIZONE_AUDIO
+audio_devices_t AudioPolicyService::getPrimaryDevices()
+{
+    if (mpAudioPolicy == NULL) {
+        return AUDIO_DEVICE_NONE;
+    }
+    ALOGV("getPrimaryDevices() tid %d", gettid());
+    Mutex::Autolock _l(mLock);
+    audio_devices_t devices = mpAudioPolicy->get_primary_devices(mpAudioPolicy);
+    return devices;
+}
+
+audio_devices_t AudioPolicyService::getZoneSupportedDevices(audio_zones_t zone)
+{
+    if (mpAudioPolicy == NULL) {
+        return AUDIO_DEVICE_NONE;
+    }
+    if (!audio_is_output_zone(zone)) {
+        return AUDIO_DEVICE_NONE;
+    }
+    ALOGV("getZoneSupportedDevices() tid %d", gettid());
+    Mutex::Autolock _l(mLock);
+    audio_devices_t devices = mpAudioPolicy->get_zone_supported_devices(mpAudioPolicy, zone);
+    return devices;
+}
+
+status_t AudioPolicyService::setZoneDevices(audio_zones_t zone, audio_devices_t devices)
+{
+    if (mpAudioPolicy == NULL) {
+        return NO_INIT;
+    }
+    if (!settingsAllowed()) {
+        return PERMISSION_DENIED;
+    }
+    if (!audio_is_output_zone(zone) || !audio_is_output_devices(devices)) {
+        return BAD_VALUE;
+    }
+    ALOGV("setZoneDevices() tid %d", gettid());
+    Mutex::Autolock _l(mLock);
+    mpAudioPolicy->set_zone_devices(mpAudioPolicy, zone, devices);
+    return NO_ERROR;
+}
+
+audio_devices_t AudioPolicyService::getZoneDevices(audio_zones_t zone)
+{
+    if (mpAudioPolicy == NULL) {
+        return AUDIO_DEVICE_NONE;
+    }
+    if (!audio_is_output_zone(zone)) {
+        return AUDIO_DEVICE_NONE;
+    }
+    ALOGV("getZoneDevices() tid %d", gettid());
+    Mutex::Autolock _l(mLock);
+    audio_devices_t devices = mpAudioPolicy->get_zone_devices(mpAudioPolicy, zone);
+    return devices;
+}
+
+status_t AudioPolicyService::setSessionZones(int session, audio_zones_t zones)
+{
+    if (mpAudioPolicy == NULL) {
+        return NO_INIT;
+    }
+    if (!settingsAllowed()) {
+        return PERMISSION_DENIED;
+    }
+    if (!audio_is_output_zones(zones)) {
+        return BAD_VALUE;
+    }
+    ALOGV("setSessionZones() tid %d", gettid());
+    Mutex::Autolock _l(mLock);
+    mpAudioPolicy->set_session_zones(mpAudioPolicy, session, zones);
+    return NO_ERROR;
+}
+
+audio_zones_t AudioPolicyService::getSessionZones(int session)
+{
+    if (mpAudioPolicy == NULL) {
+        return AUDIO_ZONE_NONE;
+    }
+    ALOGV("getSessionZones() tid %d", gettid());
+    Mutex::Autolock _l(mLock);
+    audio_zones_t zones = mpAudioPolicy->get_session_zones(mpAudioPolicy, session);
+    return zones;
+}
+
+status_t AudioPolicyService::setZoneVolume(audio_zones_t zone, float volume)
+{
+    if (mpAudioPolicy == NULL) {
+        return NO_INIT;
+    }
+    if (!settingsAllowed()) {
+        return PERMISSION_DENIED;
+    }
+    if (!audio_is_output_zone(zone)) {
+        return BAD_VALUE;
+    }
+    if (volume < 0.0f || volume > 1.0f) {
+        return BAD_VALUE;
+    }
+    ALOGV("setZoneVolume() tid %d", gettid());
+    Mutex::Autolock _l(mLock);
+    mpAudioPolicy->set_zone_volume(mpAudioPolicy, zone, volume);
+    return NO_ERROR;
+}
+
+float AudioPolicyService::getZoneVolume(audio_zones_t zone)
+{
+    if (mpAudioPolicy == NULL) {
+        return -1.0f;
+    }
+    if (!audio_is_output_zone(zone)) {
+        return -1.0f;
+    }
+    ALOGV("getZoneVolume() tid %d", gettid());
+    Mutex::Autolock _l(mLock);
+    float volume = mpAudioPolicy->get_zone_volume(mpAudioPolicy, zone);
+    return volume;
+}
+
+status_t AudioPolicyService::setSessionVolume(int session, audio_zones_t zones, float volume)
+{
+    if (mpAudioPolicy == NULL) {
+        return NO_INIT;
+    }
+    if (!settingsAllowed()) {
+        return PERMISSION_DENIED;
+    }
+    if (!audio_is_output_zones(zones)) {
+        return BAD_VALUE;
+    }
+    if (volume < 0.0f || volume > 1.0f) {
+        return BAD_VALUE;
+    }
+    ALOGV("setSessionVolume() tid %d", gettid());
+    Mutex::Autolock _l(mLock);
+    mpAudioPolicy->set_session_volume(mpAudioPolicy, session, zones, volume);
+    return NO_ERROR;
+}
+
+float AudioPolicyService::getSessionVolume(int session, audio_zones_t zone)
+{
+    if (mpAudioPolicy == NULL) {
+        return -1.0f;
+    }
+    if (!settingsAllowed()) {
+        return -1.0f;
+    }
+    if (!audio_is_output_zone(zone)) {
+        return -1.0f;
+    }
+    ALOGV("getSessionVolume() tid %d", gettid());
+    Mutex::Autolock _l(mLock);
+    float volume = mpAudioPolicy->get_session_volume(mpAudioPolicy, session, zone);
+    return volume;
+}
+#endif
 
 void AudioPolicyService::binderDied(const wp<IBinder>& who) {
     ALOGW("binderDied() %p, calling pid %d", who.unsafe_get(),

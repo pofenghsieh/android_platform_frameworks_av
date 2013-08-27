@@ -265,10 +265,23 @@ status_t AudioTrack::set(
         mFrameSizeAF = sizeof(uint8_t);
     }
 
+#ifdef OMAP_MULTIZONE_AUDIO
+    if (sessionId == 0) {
+        sessionId = AudioSystem::newAudioSessionId();
+    }
+
+    ALOGV("set(): sessionId %d", sessionId);
+
+    audio_io_handle_t output = AudioSystem::getOutput(
+                                    streamType,
+                                    sampleRate, format, channelMask,
+                                    flags, sessionId);
+#else
     audio_io_handle_t output = AudioSystem::getOutput(
                                     streamType,
                                     sampleRate, format, channelMask,
                                     flags);
+#endif
 
     if (output == 0) {
         ALOGE("Could not get audio output for stream type %d", streamType);
@@ -713,8 +726,13 @@ audio_io_handle_t AudioTrack::getOutput()
 // must be called with mLock held
 audio_io_handle_t AudioTrack::getOutput_l()
 {
+#ifdef OMAP_MULTIZONE_AUDIO
+    return AudioSystem::getOutput(mStreamType,
+            mSampleRate, mFormat, mChannelMask, mFlags, mSessionId);
+#else
     return AudioSystem::getOutput(mStreamType,
             mSampleRate, mFormat, mChannelMask, mFlags);
+#endif
 }
 
 status_t AudioTrack::attachAuxEffect(int effectId)

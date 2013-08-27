@@ -56,6 +56,18 @@ enum {
     GET_DEVICES_FOR_STREAM,
     QUERY_DEFAULT_PRE_PROCESSING,
     SET_EFFECT_ENABLED,
+#ifdef OMAP_MULTIZONE_AUDIO
+    GET_PRIMARY_DEVICES,
+    GET_ZONE_SUPPORTED_DEVICES,
+    SET_ZONE_DEVICES,
+    GET_ZONE_DEVICES,
+    SET_SESSION_ZONES,
+    GET_SESSION_ZONES,
+    SET_ZONE_VOLUME,
+    GET_ZONE_VOLUME,
+    SET_SESSION_VOLUME,
+    GET_SESSION_VOLUME,
+#endif
     IS_STREAM_ACTIVE_REMOTELY
 };
 
@@ -121,12 +133,22 @@ public:
         return static_cast <audio_policy_forced_cfg_t> (reply.readInt32());
     }
 
+#ifdef OMAP_MULTIZONE_AUDIO
+    virtual audio_io_handle_t getOutput(
+                                        audio_stream_type_t stream,
+                                        uint32_t samplingRate,
+                                        audio_format_t format,
+                                        audio_channel_mask_t channelMask,
+                                        audio_output_flags_t flags,
+                                        int session)
+#else
     virtual audio_io_handle_t getOutput(
                                         audio_stream_type_t stream,
                                         uint32_t samplingRate,
                                         audio_format_t format,
                                         audio_channel_mask_t channelMask,
                                         audio_output_flags_t flags)
+#endif
     {
         Parcel data, reply;
         data.writeInterfaceToken(IAudioPolicyService::getInterfaceDescriptor());
@@ -135,6 +157,9 @@ public:
         data.writeInt32(static_cast <uint32_t>(format));
         data.writeInt32(channelMask);
         data.writeInt32(static_cast <uint32_t>(flags));
+#ifdef OMAP_MULTIZONE_AUDIO
+        data.writeInt32(session);
+#endif
         remote()->transact(GET_OUTPUT, data, &reply);
         return static_cast <audio_io_handle_t> (reply.readInt32());
     }
@@ -165,11 +190,19 @@ public:
         return static_cast <status_t> (reply.readInt32());
     }
 
+#ifdef OMAP_MULTIZONE_AUDIO
+    virtual void releaseOutput(audio_io_handle_t output,
+                               int session)
+#else
     virtual void releaseOutput(audio_io_handle_t output)
+#endif
     {
         Parcel data, reply;
         data.writeInterfaceToken(IAudioPolicyService::getInterfaceDescriptor());
         data.writeInt32(output);
+#ifdef OMAP_MULTIZONE_AUDIO
+        data.writeInt32(session);
+#endif
         remote()->transact(RELEASE_OUTPUT, data, &reply);
     }
 
@@ -209,11 +242,19 @@ public:
         return static_cast <status_t> (reply.readInt32());
     }
 
+#ifdef OMAP_MULTIZONE_AUDIO
+    virtual void releaseInput(audio_io_handle_t input,
+                              int session)
+#else
     virtual void releaseInput(audio_io_handle_t input)
+#endif
     {
         Parcel data, reply;
         data.writeInterfaceToken(IAudioPolicyService::getInterfaceDescriptor());
         data.writeInt32(input);
+#ifdef OMAP_MULTIZONE_AUDIO
+        data.writeInt32(session);
+#endif
         remote()->transact(RELEASE_INPUT, data, &reply);
     }
 
@@ -374,6 +415,105 @@ public:
         *count = retCount;
         return status;
     }
+
+#ifdef OMAP_MULTIZONE_AUDIO
+    virtual audio_devices_t getPrimaryDevices()
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(IAudioPolicyService::getInterfaceDescriptor());
+        remote()->transact(GET_PRIMARY_DEVICES, data, &reply);
+        return static_cast <audio_devices_t> (reply.readInt32());
+    }
+
+    virtual audio_devices_t getZoneSupportedDevices(audio_zones_t zone)
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(IAudioPolicyService::getInterfaceDescriptor());
+        data.writeInt32(static_cast <uint32_t>(zone));
+        remote()->transact(GET_ZONE_SUPPORTED_DEVICES, data, &reply);
+        return static_cast <audio_devices_t> (reply.readInt32());
+    }
+
+    virtual status_t setZoneDevices(audio_zones_t zone, audio_devices_t devices)
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(IAudioPolicyService::getInterfaceDescriptor());
+        data.writeInt32(static_cast <uint32_t>(zone));
+        data.writeInt32(static_cast <uint32_t>(devices));
+        remote()->transact(SET_ZONE_DEVICES, data, &reply);
+        return static_cast <status_t> (reply.readInt32());
+    }
+
+    virtual audio_devices_t getZoneDevices(audio_zones_t zone)
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(IAudioPolicyService::getInterfaceDescriptor());
+        data.writeInt32(static_cast <uint32_t>(zone));
+        remote()->transact(GET_ZONE_DEVICES, data, &reply);
+        return static_cast <audio_devices_t> (reply.readInt32());
+    }
+
+    virtual status_t setSessionZones(int session, audio_zones_t zones)
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(IAudioPolicyService::getInterfaceDescriptor());
+        data.writeInt32(session);
+        data.writeInt32(static_cast <uint32_t>(zones));
+        remote()->transact(SET_SESSION_ZONES, data, &reply);
+        return static_cast <status_t> (reply.readInt32());
+    }
+
+    virtual audio_zones_t getSessionZones(int session)
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(IAudioPolicyService::getInterfaceDescriptor());
+        data.writeInt32(session);
+        remote()->transact(GET_SESSION_ZONES, data, &reply);
+        return static_cast <audio_zones_t> (reply.readInt32());
+    }
+
+    virtual status_t setZoneVolume(audio_zones_t zone, float volume)
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(IAudioPolicyService::getInterfaceDescriptor());
+        data.writeInt32(static_cast <uint32_t>(zone));
+        data.writeFloat(volume);
+        remote()->transact(SET_ZONE_VOLUME, data, &reply);
+        return static_cast <status_t> (reply.readInt32());
+    }
+
+    virtual float getZoneVolume(audio_zones_t zone)
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(IAudioPolicyService::getInterfaceDescriptor());
+        data.writeInt32(static_cast <uint32_t>(zone));
+        remote()->transact(GET_ZONE_VOLUME, data, &reply);
+        return reply.readFloat();
+    }
+
+    virtual status_t setSessionVolume(int session, audio_zones_t zones, float volume)
+    {
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(IAudioPolicyService::getInterfaceDescriptor());
+        data.writeInt32(static_cast <uint32_t>(session));
+        data.writeInt32(static_cast <uint32_t>(zones));
+        data.writeFloat(volume);
+        remote()->transact(SET_SESSION_VOLUME, data, &reply);
+        return static_cast <status_t> (reply.readInt32());
+    }
+    }
+
+    virtual float getSessionVolume(int session, audio_zones_t zone)
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(IAudioPolicyService::getInterfaceDescriptor());
+        data.writeInt32(static_cast <uint32_t>(session));
+        data.writeInt32(static_cast <uint32_t>(zone));
+        remote()->transact(GET_SESSION_VOLUME, data, &reply);
+        return reply.readFloat();
+    }
+#endif
 };
 
 IMPLEMENT_META_INTERFACE(AudioPolicyService, "android.media.IAudioPolicyService");
@@ -443,11 +583,21 @@ status_t BnAudioPolicyService::onTransact(
             audio_output_flags_t flags =
                     static_cast <audio_output_flags_t>(data.readInt32());
 
+#ifdef OMAP_MULTIZONE_AUDIO
+            int session = data.readInt32();
+            audio_io_handle_t output = getOutput(stream,
+                                                 samplingRate,
+                                                 format,
+                                                 channelMask,
+                                                 flags,
+                                                 session);
+#else
             audio_io_handle_t output = getOutput(stream,
                                                  samplingRate,
                                                  format,
                                                  channelMask,
                                                  flags);
+#endif
             reply->writeInt32(static_cast <int>(output));
             return NO_ERROR;
         } break;
@@ -477,7 +627,12 @@ status_t BnAudioPolicyService::onTransact(
         case RELEASE_OUTPUT: {
             CHECK_INTERFACE(IAudioPolicyService, data, reply);
             audio_io_handle_t output = static_cast <audio_io_handle_t>(data.readInt32());
+#ifdef OMAP_MULTIZONE_AUDIO
+            int session = data.readInt32();
+            releaseOutput(output, session);
+#else
             releaseOutput(output);
+#endif
             return NO_ERROR;
         } break;
 
@@ -514,7 +669,12 @@ status_t BnAudioPolicyService::onTransact(
         case RELEASE_INPUT: {
             CHECK_INTERFACE(IAudioPolicyService, data, reply);
             audio_io_handle_t input = static_cast <audio_io_handle_t>(data.readInt32());
+#ifdef OMAP_MULTIZONE_AUDIO
+            int session = data.readInt32();
+            releaseInput(input, session);
+#else
             releaseInput(input);
+#endif
             return NO_ERROR;
         } break;
 
@@ -653,6 +813,83 @@ status_t BnAudioPolicyService::onTransact(
             delete[] descriptors;
             return status;
         }
+
+#ifdef OMAP_MULTIZONE_AUDIO
+        case GET_PRIMARY_DEVICES: {
+            CHECK_INTERFACE(IAudioPolicyService, data, reply);
+            reply->writeInt32(static_cast <uint32_t>(getPrimaryDevices()));
+            return NO_ERROR;
+        } break;
+
+        case GET_ZONE_SUPPORTED_DEVICES: {
+            CHECK_INTERFACE(IAudioPolicyService, data, reply);
+            audio_zones_t zone = static_cast <audio_zones_t>(data.readInt32());
+            reply->writeInt32(static_cast <uint32_t>(getZoneSupportedDevices(zone)));
+            return NO_ERROR;
+        } break;
+
+        case SET_ZONE_DEVICES: {
+            CHECK_INTERFACE(IAudioPolicyService, data, reply);
+            audio_zones_t zone = static_cast <audio_zones_t>(data.readInt32());
+            audio_devices_t devices = static_cast <audio_devices_t>(data.readInt32());
+            reply->writeInt32(static_cast <uint32_t>(setZoneDevices(zone, devices)));
+            return NO_ERROR;
+        } break;
+
+        case GET_ZONE_DEVICES: {
+            CHECK_INTERFACE(IAudioPolicyService, data, reply);
+            audio_zones_t zone = static_cast <audio_zones_t>(data.readInt32());
+            reply->writeInt32(static_cast <uint32_t>(getZoneDevices(zone)));
+            return NO_ERROR;
+        } break;
+
+        case SET_SESSION_ZONES: {
+            CHECK_INTERFACE(IAudioPolicyService, data, reply);
+            int session = data.readInt32();
+            audio_zones_t zones = static_cast <audio_zones_t>(data.readInt32());
+            reply->writeInt32(static_cast <uint32_t>(setSessionZones(session, zones)));
+            return NO_ERROR;
+        } break;
+
+        case GET_SESSION_ZONES: {
+            CHECK_INTERFACE(IAudioPolicyService, data, reply);
+            int session = data.readInt32();
+            reply->writeInt32(static_cast <uint32_t>(getSessionZones(session)));
+            return NO_ERROR;
+        } break;
+
+        case SET_ZONE_VOLUME: {
+            CHECK_INTERFACE(IAudioPolicyService, data, reply);
+            audio_zones_t zone = static_cast <audio_zones_t>(data.readInt32());
+            float volume = data.readFloat();
+            reply->writeInt32(static_cast <uint32_t>(setZoneVolume(zone, volume)));
+            return NO_ERROR;
+        }
+
+        case GET_ZONE_VOLUME: {
+            CHECK_INTERFACE(IAudioPolicyService, data, reply);
+            audio_zones_t zone = static_cast <audio_zones_t>(data.readInt32());
+            reply->writeFloat(getZoneVolume(zone));
+            return NO_ERROR;
+        }
+
+        case SET_SESSION_VOLUME: {
+            CHECK_INTERFACE(IAudioPolicyService, data, reply);
+            int session = data.readInt32();
+            audio_zones_t zones = static_cast <audio_zones_t>(data.readInt32());
+            float volume = data.readFloat();
+            reply->writeInt32(static_cast <uint32_t>(setSessionVolume(session, zones, volume)));
+            return NO_ERROR;
+        }
+
+        case GET_SESSION_VOLUME: {
+            CHECK_INTERFACE(IAudioPolicyService, data, reply);
+            int session = data.readInt32();
+            audio_zones_t zone = static_cast <audio_zones_t>(data.readInt32());
+            reply->writeFloat(getSessionVolume(session, zone));
+            return NO_ERROR;
+        }
+#endif
 
         default:
             return BBinder::onTransact(code, data, reply, flags);

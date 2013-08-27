@@ -49,18 +49,32 @@ public:
     virtual status_t setForceUse(audio_policy_force_use_t usage,
                                     audio_policy_forced_cfg_t config) = 0;
     virtual audio_policy_forced_cfg_t getForceUse(audio_policy_force_use_t usage) = 0;
+#ifdef OMAP_MULTIZONE_AUDIO
+    virtual audio_io_handle_t getOutput(audio_stream_type_t stream,
+                                        uint32_t samplingRate = 0,
+                                        audio_format_t format = AUDIO_FORMAT_DEFAULT,
+                                        audio_channel_mask_t channelMask = 0,
+                                        audio_output_flags_t flags = AUDIO_OUTPUT_FLAG_NONE,
+                                        int session = 0) = 0;
+#else
     virtual audio_io_handle_t getOutput(audio_stream_type_t stream,
                                         uint32_t samplingRate = 0,
                                         audio_format_t format = AUDIO_FORMAT_DEFAULT,
                                         audio_channel_mask_t channelMask = 0,
                                         audio_output_flags_t flags = AUDIO_OUTPUT_FLAG_NONE) = 0;
+#endif
     virtual status_t startOutput(audio_io_handle_t output,
                                  audio_stream_type_t stream,
                                  int session = 0) = 0;
     virtual status_t stopOutput(audio_io_handle_t output,
                                 audio_stream_type_t stream,
                                 int session = 0) = 0;
+#ifdef OMAP_MULTIZONE_AUDIO
+    virtual void releaseOutput(audio_io_handle_t output,
+                               int session = 0) = 0;
+#else
     virtual void releaseOutput(audio_io_handle_t output) = 0;
+#endif
     virtual audio_io_handle_t getInput(audio_source_t inputSource,
                                     uint32_t samplingRate = 0,
                                     audio_format_t format = AUDIO_FORMAT_DEFAULT,
@@ -68,7 +82,12 @@ public:
                                     int audioSession = 0) = 0;
     virtual status_t startInput(audio_io_handle_t input) = 0;
     virtual status_t stopInput(audio_io_handle_t input) = 0;
+#ifdef OMAP_MULTIZONE_AUDIO
+    virtual void releaseInput(audio_io_handle_t input,
+                              int session = 0) = 0;
+#else
     virtual void releaseInput(audio_io_handle_t input) = 0;
+#endif
     virtual status_t initStreamVolume(audio_stream_type_t stream,
                                       int indexMin,
                                       int indexMax) = 0;
@@ -95,6 +114,19 @@ public:
     virtual status_t queryDefaultPreProcessing(int audioSession,
                                               effect_descriptor_t *descriptors,
                                               uint32_t *count) = 0;
+#ifdef OMAP_MULTIZONE_AUDIO
+    virtual audio_devices_t getPrimaryDevices() = 0;
+    virtual audio_devices_t getZoneSupportedDevices(audio_zones_t zone) = 0;
+    virtual status_t setZoneDevices(audio_zones_t zone, audio_devices_t devices) = 0;
+    virtual audio_devices_t getZoneDevices(audio_zones_t zone) = 0;
+    virtual status_t setSessionZones(int session, audio_zones_t zones) = 0;
+    virtual audio_zones_t getSessionZones(int session) = 0;
+
+    virtual status_t setZoneVolume(audio_zones_t zone, float volume) = 0;
+    virtual float getZoneVolume(audio_zones_t zone) = 0;
+    virtual status_t setSessionVolume(int session, audio_zones_t zones, float volume) = 0;
+    virtual float getSessionVolume(int session, audio_zones_t zone) = 0;
+#endif
 };
 
 
