@@ -218,7 +218,13 @@ status_t AudioSystem::getOutputSamplingRate(uint32_t* samplingRate, audio_stream
         return PERMISSION_DENIED;
     }
 
+#ifdef OMAP_MULTIZONE_AUDIO
+    status_t status = getSamplingRate(output, streamType, samplingRate);
+    releaseOutput(output);
+    return status;
+#else
     return getSamplingRate(output, streamType, samplingRate);
+#endif
 }
 
 status_t AudioSystem::getSamplingRate(audio_io_handle_t output,
@@ -260,7 +266,13 @@ status_t AudioSystem::getOutputFrameCount(size_t* frameCount, audio_stream_type_
         return PERMISSION_DENIED;
     }
 
+#ifdef OMAP_MULTIZONE_AUDIO
+    status_t status = getFrameCount(output, streamType, frameCount);
+    releaseOutput(output);
+    return status;
+#else
     return getFrameCount(output, streamType, frameCount);
+#endif
 }
 
 status_t AudioSystem::getFrameCount(audio_io_handle_t output,
@@ -300,7 +312,13 @@ status_t AudioSystem::getOutputLatency(uint32_t* latency, audio_stream_type_t st
         return PERMISSION_DENIED;
     }
 
+#ifdef OMAP_MULTIZONE_AUDIO
+    status_t status = getLatency(output, streamType, latency);
+    releaseOutput(output);
+    return status;
+#else
     return getLatency(output, streamType, latency);
+#endif
 }
 
 status_t AudioSystem::getLatency(audio_io_handle_t output,
@@ -371,7 +389,23 @@ status_t AudioSystem::getRenderPosition(size_t *halFrames, size_t *dspFrames,
         stream = AUDIO_STREAM_MUSIC;
     }
 
+#ifdef OMAP_MULTIZONE_AUDIO
+    audio_io_handle_t output;
+    status_t status;
+
+    output = getOutput(stream);
+    if (output == 0) {
+        return PERMISSION_DENIED;
+    }
+
+    status = af->getRenderPosition(halFrames, dspFrames, output);
+
+    releaseOutput(stream);
+
+    return status;
+#else
     return af->getRenderPosition(halFrames, dspFrames, getOutput(stream));
+#endif
 }
 
 size_t AudioSystem::getInputFramesLost(audio_io_handle_t ioHandle) {
