@@ -53,6 +53,9 @@ enum {
     GET_INPUTBUFFERSIZE,
     OPEN_OUTPUT,
     OPEN_DUPLICATE_OUTPUT,
+#ifdef OMAP_MULTIZONE_AUDIO
+    OPEN_MULT_DUPLICATE_OUTPUT,
+#endif
     CLOSE_OUTPUT,
     SUSPEND_OUTPUT,
     RESTORE_OUTPUT,
@@ -404,6 +407,24 @@ public:
         remote()->transact(OPEN_DUPLICATE_OUTPUT, data, &reply);
         return (audio_io_handle_t) reply.readInt32();
     }
+
+#ifdef OMAP_MULTIZONE_AUDIO
+    virtual audio_io_handle_t openDuplicateOutput(audio_io_handle_t outputs[],
+            uint32_t numOutputs)
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(IAudioFlinger::getInterfaceDescriptor());
+        if (!outputs) {
+            numOutputs = 0;
+        }
+        data.writeInt32((int32_t) numOutputs);
+        for (uint32_t i = 0; i < numOutputs; i++) {
+            data.writeInt32((int32_t) outputs[i]);
+        }
+        remote()->transact(OPEN_MULT_DUPLICATE_OUTPUT, data, &reply);
+        return (audio_io_handle_t) reply.readInt32();
+    }
+#endif
 
     virtual status_t closeOutput(audio_io_handle_t output)
     {
@@ -891,6 +912,18 @@ status_t BnAudioFlinger::onTransact(
             reply->writeInt32((int32_t) openDuplicateOutput(output1, output2));
             return NO_ERROR;
         } break;
+#ifdef OMAP_MULTIZONE_AUDIO
+        case OPEN_MULT_DUPLICATE_OUTPUT: {
+            CHECK_INTERFACE(IAudioFlinger, data, reply);
+            uint32_t numOutputs = (uint32_t) data.readInt32();
+            audio_io_handle_t outputs[numOutputs];
+            for (uint32_t i = 0; i < numOutputs; i++) {
+                outputs[i] = (audio_io_handle_t) data.readInt32();
+            }
+            reply->writeInt32((int32_t) openDuplicateOutput(outputs, numOutputs));
+            return NO_ERROR;
+        } break;
+#endif
         case CLOSE_OUTPUT: {
             CHECK_INTERFACE(IAudioFlinger, data, reply);
             reply->writeInt32(closeOutput((audio_io_handle_t) data.readInt32()));

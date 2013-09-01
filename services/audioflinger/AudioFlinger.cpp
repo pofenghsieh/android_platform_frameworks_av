@@ -1499,6 +1499,41 @@ audio_io_handle_t AudioFlinger::openDuplicateOutput(audio_io_handle_t output1,
     return id;
 }
 
+#ifdef OMAP_MULTIZONE_AUDIO
+audio_io_handle_t AudioFlinger::openDuplicateOutput(audio_io_handle_t outputs[],
+                                                    uint32_t numOutputs)
+{
+    Mutex::Autolock _l(mLock);
+
+    Vector<MixerThread *> threads;
+
+    if (!numOutputs)
+        return 0;
+
+    for (uint32_t i = 0; i < numOutputs; i++) {
+        MixerThread *outThread = checkMixerThread_l(outputs[i]);
+        if (outThread == NULL) {
+            ALOGW("openDuplicateOutput() wrong output mixer type for %d", outputs[i]);
+            return 0;
+        }
+
+        threads.add(outThread);
+    }
+
+    audio_io_handle_t id = nextUniqueId();
+    DuplicatingThread *thread = new DuplicatingThread(this, threads[0], id);
+
+    for (uint32_t i = 1; i < threads.size(); i++) {
+        thread->addOutputTrack(threads[i]);
+    }
+
+    mPlaybackThreads.add(id, thread);
+    // notify client processes of the new output creation
+    thread->audioConfigChanged_l(AudioSystem::OUTPUT_OPENED);
+    return id;
+}
+#endif
+
 status_t AudioFlinger::closeOutput(audio_io_handle_t output)
 {
     return closeOutput_nonvirtual(output);

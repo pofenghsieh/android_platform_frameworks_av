@@ -1603,6 +1603,20 @@ static audio_io_handle_t aps_open_dup_output(void *service,
     return af->openDuplicateOutput(output1, output2);
 }
 
+#ifdef OMAP_MULTIZONE_AUDIO
+static audio_io_handle_t aps_open_mult_dup_output(void *service,
+                                                 audio_io_handle_t outputs[],
+                                                 uint32_t num_outputs)
+{
+    sp<IAudioFlinger> af = AudioSystem::get_audio_flinger();
+    if (af == 0) {
+        ALOGW("%s: could not get AudioFlinger", __func__);
+        return 0;
+    }
+    return af->openDuplicateOutput(outputs, num_outputs);
+}
+#endif
+
 static int aps_close_output(void *service, audio_io_handle_t output)
 {
     sp<IAudioFlinger> af = AudioSystem::get_audio_flinger();
@@ -1750,6 +1764,9 @@ namespace {
     struct audio_policy_service_ops aps_ops = {
         open_output           : aps_open_output,
         open_duplicate_output : aps_open_dup_output,
+#ifdef OMAP_MULTIZONE_AUDIO
+        open_mult_duplicate_output : aps_open_mult_dup_output,
+#endif
         close_output          : aps_close_output,
         suspend_output        : aps_suspend_output,
         restore_output        : aps_restore_output,

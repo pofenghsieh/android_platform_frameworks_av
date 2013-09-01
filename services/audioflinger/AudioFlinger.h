@@ -162,6 +162,11 @@ public:
     virtual audio_io_handle_t openDuplicateOutput(audio_io_handle_t output1,
                                                   audio_io_handle_t output2);
 
+#ifdef OMAP_MULTIZONE_AUDIO
+    virtual audio_io_handle_t openDuplicateOutput(audio_io_handle_t outputs[],
+                                                  uint32_t numOutputs);
+#endif
+
     virtual status_t closeOutput(audio_io_handle_t output);
 
     virtual status_t suspendOutput(audio_io_handle_t output);

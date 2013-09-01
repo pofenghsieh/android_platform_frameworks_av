@@ -140,6 +140,10 @@ public:
                                          audio_output_flags_t flags) = 0;
     virtual audio_io_handle_t openDuplicateOutput(audio_io_handle_t output1,
                                     audio_io_handle_t output2) = 0;
+#ifdef OMAP_MULTIZONE_AUDIO
+    virtual audio_io_handle_t openDuplicateOutput(audio_io_handle_t outputs[],
+                                                  uint32_t numOutputs) = 0;
+#endif
     virtual status_t closeOutput(audio_io_handle_t output) = 0;
     virtual status_t suspendOutput(audio_io_handle_t output) = 0;
     virtual status_t restoreOutput(audio_io_handle_t output) = 0;
