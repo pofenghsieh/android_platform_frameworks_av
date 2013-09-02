@@ -1755,7 +1755,13 @@ status_t AudioFlinger::setStreamOutput(audio_stream_type_t stream, audio_io_hand
 
     for (size_t i = 0; i < mPlaybackThreads.size(); i++) {
         PlaybackThread *thread = mPlaybackThreads.valueAt(i).get();
+#ifdef OMAP_MULTIZONE_AUDIO
+        if (thread->id() == output) {
+            thread->invalidateTracks(stream);
+        }
+#else
         thread->invalidateTracks(stream);
+#endif
     }
 
     return NO_ERROR;
