@@ -37,6 +37,8 @@
 #include <media/stagefright/OMXCodec.h>
 #include <media/stagefright/Utils.h>
 #include <media/stagefright/SkipCutBuffer.h>
+#include <media/AudioParameter.h>
+#include <media/AudioSystem.h>
 #include <utils/Vector.h>
 
 #include <OMX_Audio.h>
@@ -4375,6 +4377,20 @@ void OMXCodec::initOutputFormat(const sp<MetaData> &inputFormat) {
                          "%d Hz, codec outputs %lu Hz)",
                          sampleRate, params.nSamplingRate);
                 }
+#ifdef OMAP_ENHANCEMENT
+                AudioParameter param = AudioParameter();
+                unsigned int mapping = 0;
+                int x = 0, mapped_channels = 0;
+                if ((int)numChannels > params.nChannels)
+                        mapped_channels = numChannels;
+                else
+                        mapped_channels = params.nChannels;
+                for(x = 0; x < mapped_channels; x++) {
+                        mapping = mapping |  params.eChannelMapping[x] << 4*(x);
+                }
+                param.addInt(String8("channel_map"),mapping);
+                AudioSystem::setParameters(0, param.toString());
+#endif
 
                 mOutputFormat->setCString(
                         kKeyMIMEType, MEDIA_MIMETYPE_AUDIO_RAW);
