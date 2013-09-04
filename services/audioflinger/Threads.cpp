@@ -1183,7 +1183,11 @@ sp<AudioFlinger::PlaybackThread::Track> AudioFlinger::PlaybackThread::createTrac
         }
     } else {
         // Resampler implementation limits input sampling rate to 2 x output sampling rate.
+#ifdef OMAP_ENHANCEMENT
+        if (AudioResampler::checkRate(mSampleRate, sampleRate)) {
+#else
         if (sampleRate > mSampleRate*2) {
+#endif
             ALOGE("Sample rate out of range: %u mSampleRate %u", sampleRate, mSampleRate);
             lStatus = BAD_VALUE;
             goto Exit;
@@ -2739,8 +2743,14 @@ AudioFlinger::PlaybackThread::mixer_state AudioFlinger::MixerThread::prepareTrac
             uint32_t reqSampleRate = track->mServerProxy->getSampleRate();
             if (reqSampleRate == 0) {
                 reqSampleRate = mSampleRate;
+#ifdef OMAP_ENHANCEMENT
+            } else if (AudioResampler::checkRate(mSampleRate, reqSampleRate)) {
+                reqSampleRate = AudioResampler::checkRate(mSampleRate,
+                                                          reqSampleRate);
+#else
             } else if (reqSampleRate > maxSampleRate) {
                 reqSampleRate = maxSampleRate;
+#endif
             }
             mAudioMixer->setParameter(
                 name,
@@ -4262,8 +4272,13 @@ bool AudioFlinger::RecordThread::checkForNewParameters_l()
                 if (status == BAD_VALUE &&
                     reqFormat == mInput->stream->common.get_format(&mInput->stream->common) &&
                     reqFormat == AUDIO_FORMAT_PCM_16_BIT &&
+#ifdef OMAP_ENHANCEMENT
+                    !AudioResampler::checkRate(reqSamplingRate,
+                        mInput->stream->common.get_sample_rate(&mInput->stream->common)) &&
+#else
                     (mInput->stream->common.get_sample_rate(&mInput->stream->common)
                             <= (2 * reqSamplingRate)) &&
+#endif
                     popcount(mInput->stream->common.get_channels(&mInput->stream->common))
                             <= FCC_2 &&
                     (reqChannelCount <= FCC_2)) {
