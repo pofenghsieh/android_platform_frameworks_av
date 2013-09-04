@@ -59,6 +59,10 @@ LOCAL_SRC_FILES:=                         \
         mp4/TrackFragment.cpp             \
         APE.cpp                           \
 
+ifeq ($(OMAP_ENHANCEMENT), true)
+LOCAL_SRC_FILES += TimeInterpolator.cpp
+endif
+
 LOCAL_C_INCLUDES:= \
         $(TOP)/frameworks/av/include/media/stagefright/timedtext \
         $(TOP)/frameworks/native/include/media/hardware \
