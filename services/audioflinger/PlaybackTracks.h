@@ -139,6 +139,19 @@ private:
                                         // 'volatile' means accessed without lock or
                                         // barrier, but is read/written atomically
     bool                mIsInvalid; // non-resettable latch, set by invalidate()
+
+#ifdef OMAP_MULTIZONE_AUDIO
+public:
+            void        setZoneVolume(float volume) { mZoneVolume = volume; }
+            float       zoneVolume() const { return mZoneVolume; }
+            void        setSessionIdForVolume(int sessionId) { mSessionIdForVolume = sessionId; }
+            int         sessionIdForVolume() const { return mSessionIdForVolume; }
+
+protected:
+           float        mZoneVolume;         // Listening zone volume of the track
+           int          mSessionIdForVolume; // Track's id for normal Tracks,
+                                             // duplicating output's track id for OutputTracks
+#endif
 };  // end of Track
 
 class TimedTrack : public Track {
@@ -249,6 +262,9 @@ public:
                              int triggerSession = 0);
     virtual void        stop();
             bool        write(int16_t* data, uint32_t frames);
+#ifdef OMAP_MULTIZONE_AUDIO
+            status_t    setVolume(float volume);
+#endif
             bool        bufferQueueEmpty() const { return mBufferQueue.size() == 0; }
             bool        isActive() const { return mActive; }
     const wp<ThreadBase>& thread() const { return mThread; }

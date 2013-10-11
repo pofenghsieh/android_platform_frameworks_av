@@ -143,6 +143,12 @@ public:
 #ifdef OMAP_MULTIZONE_AUDIO
     virtual audio_io_handle_t openDuplicateOutput(audio_io_handle_t outputs[],
                                                   uint32_t numOutputs) = 0;
+    virtual status_t setDuplicatingVolume(audio_io_handle_t src,
+                                          audio_io_handle_t dest,
+                                          float volume) = 0;
+    virtual status_t setZoneVolume(audio_io_handle_t output,
+                                   int sessionId,
+                                   float volume) = 0;
 #endif
     virtual status_t closeOutput(audio_io_handle_t output) = 0;
     virtual status_t suspendOutput(audio_io_handle_t output) = 0;

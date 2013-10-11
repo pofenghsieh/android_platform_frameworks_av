@@ -165,6 +165,12 @@ public:
 #ifdef OMAP_MULTIZONE_AUDIO
     virtual audio_io_handle_t openDuplicateOutput(audio_io_handle_t outputs[],
                                                   uint32_t numOutputs);
+    virtual status_t setDuplicatingVolume(audio_io_handle_t src,
+                                          audio_io_handle_t dest,
+                                          float value);
+    virtual status_t setZoneVolume(audio_io_handle_t output,
+                                   int sessionId,
+                                   float value);
 #endif
 
     virtual status_t closeOutput(audio_io_handle_t output);
@@ -431,6 +437,9 @@ private:
 
               PlaybackThread *checkPlaybackThread_l(audio_io_handle_t output) const;
               MixerThread *checkMixerThread_l(audio_io_handle_t output) const;
+#ifdef OMAP_MULTIZONE_AUDIO
+              DuplicatingThread *checkDuplicatingThread_l(audio_io_handle_t output) const;
+#endif
               RecordThread *checkRecordThread_l(audio_io_handle_t input) const;
               // no range check, AudioFlinger::mLock held
               bool streamMute_l(audio_stream_type_t stream) const

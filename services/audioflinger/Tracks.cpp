@@ -363,6 +363,10 @@ AudioFlinger::PlaybackThread::Track::Track(
     mUnderrunCount(0),
     mCachedVolume(1.0),
     mIsInvalid(false)
+#ifdef OMAP_MULTIZONE_AUDIO
+    ,mZoneVolume(1.0),
+    mSessionIdForVolume(0)
+#endif
 {
     if (mCblk != NULL) {
         // to avoid leaking a track name, do not allocate one unless there is an mCblk
@@ -435,8 +439,14 @@ void AudioFlinger::PlaybackThread::Track::destroy()
 
 /*static*/ void AudioFlinger::PlaybackThread::Track::appendDumpHeader(String8& result)
 {
+#ifdef OMAP_MULTIZONE_AUDIO
+    result.append("   Name Client Type Fmt Chn mask   Session StpCnt fCount S F SRate  "
+                  "L dB  R dB ZoneVol VolSession    Server      User     Main buf    Aux Buf  "
+                  "Flags Underruns\n");
+#else
     result.append("   Name Client Type Fmt Chn mask   Session StpCnt fCount S F SRate  "
                   "L dB  R dB    Server      User     Main buf    Aux Buf  Flags Underruns\n");
+#endif
 }
 
 void AudioFlinger::PlaybackThread::Track::dump(char* buffer, size_t size)
@@ -500,6 +510,9 @@ void AudioFlinger::PlaybackThread::Track::dump(char* buffer, size_t size)
         break;
     }
     snprintf(&buffer[7], size-7, " %6d %4u %3u 0x%08x %7u %6u %6u %1c %1d %5u %5.2g %5.2g  "
+#ifdef OMAP_MULTIZONE_AUDIO
+            "%.4f %10u  "
+#endif
             "0x%08x 0x%08x 0x%08x 0x%08x %#5x %9u%c\n",
             (mClient == 0) ? getpid_cached : mClient->pid(),
             mStreamType,
@@ -513,6 +526,10 @@ void AudioFlinger::PlaybackThread::Track::dump(char* buffer, size_t size)
             mServerProxy->getSampleRate(),
             20.0 * log10((vlr & 0xFFFF) / 4096.0),
             20.0 * log10((vlr >> 16) / 4096.0),
+#ifdef OMAP_MULTIZONE_AUDIO
+            mZoneVolume,
+            mSessionIdForVolume,
+#endif
             mCblk->server,
             mCblk->user,
             (int)mMainBuffer,
@@ -1578,6 +1595,20 @@ bool AudioFlinger::PlaybackThread::OutputTrack::write(int16_t* data, uint32_t fr
 
     return outputBufferFull;
 }
+
+#ifdef OMAP_MULTIZONE_AUDIO
+status_t AudioFlinger::PlaybackThread::OutputTrack::setVolume(float volume)
+{
+    if (volume < 0.0f || volume > 1.0f) {
+        return BAD_VALUE;
+    }
+
+    mClientProxy->setVolumeLR((uint32_t(uint16_t(volume * 0x1000)) << 16) |
+                              uint16_t(volume * 0x1000));
+
+    return NO_ERROR;
+}
+#endif
 
 status_t AudioFlinger::PlaybackThread::OutputTrack::obtainBuffer(
         AudioBufferProvider::Buffer* buffer, uint32_t waitTimeMs)

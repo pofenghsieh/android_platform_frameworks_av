@@ -1615,6 +1615,34 @@ static audio_io_handle_t aps_open_mult_dup_output(void *service,
     }
     return af->openDuplicateOutput(outputs, num_outputs);
 }
+
+static status_t aps_set_duplicating_volume(void *service,
+                                           audio_io_handle_t src,
+                                           audio_io_handle_t dest,
+                                           float volume)
+{
+    sp<IAudioFlinger> af = AudioSystem::get_audio_flinger();
+    if (af == 0) {
+        ALOGW("%s: could not get AudioFlinger", __func__);
+        return 0;
+    }
+
+    return af->setDuplicatingVolume(src, dest, volume);
+}
+
+static status_t aps_set_zone_volume(void *service,
+                                    audio_io_handle_t output,
+                                    int sessionId,
+                                    float volume)
+{
+    sp<IAudioFlinger> af = AudioSystem::get_audio_flinger();
+    if (af == 0) {
+        ALOGW("%s: could not get AudioFlinger", __func__);
+        return 0;
+    }
+
+    return af->setZoneVolume(output, sessionId, volume);
+}
 #endif
 
 static int aps_close_output(void *service, audio_io_handle_t output)
@@ -1766,6 +1794,8 @@ namespace {
         open_duplicate_output : aps_open_dup_output,
 #ifdef OMAP_MULTIZONE_AUDIO
         open_mult_duplicate_output : aps_open_mult_dup_output,
+        set_duplicating_volume : aps_set_duplicating_volume,
+        set_zone_volume       : aps_set_zone_volume,
 #endif
         close_output          : aps_close_output,
         suspend_output        : aps_suspend_output,

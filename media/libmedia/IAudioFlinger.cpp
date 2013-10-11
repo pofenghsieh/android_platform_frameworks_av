@@ -55,6 +55,8 @@ enum {
     OPEN_DUPLICATE_OUTPUT,
 #ifdef OMAP_MULTIZONE_AUDIO
     OPEN_MULT_DUPLICATE_OUTPUT,
+    SET_DUPLICATING_VOLUME,
+    SET_ZONE_VOLUME,
 #endif
     CLOSE_OUTPUT,
     SUSPEND_OUTPUT,
@@ -423,6 +425,32 @@ public:
         }
         remote()->transact(OPEN_MULT_DUPLICATE_OUTPUT, data, &reply);
         return (audio_io_handle_t) reply.readInt32();
+    }
+
+    virtual status_t setDuplicatingVolume(audio_io_handle_t src,
+                                          audio_io_handle_t dest,
+                                          float volume)
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(IAudioFlinger::getInterfaceDescriptor());
+        data.writeInt32(src);
+        data.writeInt32(dest);
+        data.writeFloat(volume);
+        remote()->transact(SET_DUPLICATING_VOLUME, data, &reply);
+        return reply.readInt32();
+    }
+
+    virtual status_t setZoneVolume(audio_io_handle_t output,
+                                   int sessionId,
+                                   float volume)
+    {
+        Parcel data, reply;
+        data.writeInterfaceToken(IAudioFlinger::getInterfaceDescriptor());
+        data.writeInt32(output);
+        data.writeInt32(sessionId);
+        data.writeFloat(volume);
+        remote()->transact(SET_ZONE_VOLUME, data, &reply);
+        return reply.readInt32();
     }
 #endif
 
@@ -921,6 +949,22 @@ status_t BnAudioFlinger::onTransact(
                 outputs[i] = (audio_io_handle_t) data.readInt32();
             }
             reply->writeInt32((int32_t) openDuplicateOutput(outputs, numOutputs));
+            return NO_ERROR;
+        } break;
+        case SET_DUPLICATING_VOLUME: {
+            CHECK_INTERFACE(IAudioFlinger, data, reply);
+            audio_io_handle_t src = (audio_io_handle_t) data.readInt32();
+            audio_io_handle_t dest = (audio_io_handle_t) data.readInt32();
+            float volume = (float) data.readFloat();
+            reply->writeInt32(setDuplicatingVolume(src, dest, volume));
+            return NO_ERROR;
+        } break;
+        case SET_ZONE_VOLUME: {
+            CHECK_INTERFACE(IAudioFlinger, data, reply);
+            audio_io_handle_t output = (audio_io_handle_t) data.readInt32();
+            int sessionId = data.readInt32();
+            float volume = (float) data.readFloat();
+            reply->writeInt32(setZoneVolume(output, sessionId, volume));
             return NO_ERROR;
         } break;
 #endif

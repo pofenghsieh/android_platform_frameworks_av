@@ -1247,6 +1247,10 @@ sp<AudioFlinger::PlaybackThread::Track> AudioFlinger::PlaybackThread::createTrac
             // so ask activity manager to do this on our behalf
             sendPrioConfigEvent_l(callingPid, tid, kPriorityAudioApp);
         }
+
+#ifdef OMAP_MULTIZONE_AUDIO
+        updateZoneVolumes();
+#endif
     }
 
     lStatus = NO_ERROR;
@@ -2058,6 +2062,48 @@ if (mType == MIXER) {
     return false;
 }
 
+#ifdef OMAP_MULTIZONE_AUDIO
+status_t AudioFlinger::PlaybackThread::setZoneVolume(int sessionId, float volume)
+{
+    mSessionZoneVolumes.replaceValueFor(sessionId, volume);
+    for (size_t i = 0; i < mTracks.size(); i++) {
+        sp<Track> track = mTracks.itemAt(i);
+
+        if (track->sessionIdForVolume() == sessionId) {
+            track->setZoneVolume(volume);
+        }
+    }
+    return NO_ERROR;
+}
+
+float AudioFlinger::PlaybackThread::getZoneVolume(int sessionId) const
+{
+    float volume = 1.0f;
+    ssize_t index = mSessionZoneVolumes.indexOfKey(sessionId);
+    if (index >= 0) {
+        volume = mSessionZoneVolumes.valueAt(index);
+    }
+
+    return volume;
+}
+
+void AudioFlinger::PlaybackThread::updateZoneVolumes()
+{
+    for (size_t i = 0; i < mTracks.size(); i++) {
+        sp<Track> track = mTracks.itemAt(i);
+
+        // OutputTracks are handled by the DuplicatingThread
+        if (!track->isOutputTrack()) {
+            int sessionId = track->sessionId();
+            float volume = getZoneVolume(sessionId);
+
+            // Track's sessionId can directly be used to retrieve its zone volume
+            track->setZoneVolume(volume);
+            track->setSessionIdForVolume(sessionId);
+        }
+    }
+}
+#endif
 
 // ----------------------------------------------------------------------------
 
@@ -2666,7 +2712,11 @@ AudioFlinger::PlaybackThread::mixer_state AudioFlinger::MixerThread::prepareTrac
 
                 // read original volumes with volume control
                 float typeVolume = mStreamTypes[track->streamType()].volume;
+#ifdef OMAP_MULTIZONE_AUDIO
+                float v = masterVolume * typeVolume * track->zoneVolume();
+#else
                 float v = masterVolume * typeVolume;
+#endif
                 ServerProxy *proxy = track->mServerProxy;
                 uint32_t vlr = proxy->getVolumeLR();
                 vl = vlr & 0xFFFF;
@@ -3178,7 +3228,11 @@ AudioFlinger::PlaybackThread::mixer_state AudioFlinger::DirectOutputThread::prep
                 }
             } else {
                 float typeVolume = mStreamTypes[track->streamType()].volume;
+#ifdef OMAP_MULTIZONE_AUDIO
+                float v = mMasterVolume * typeVolume * track->zoneVolume();
+#else
                 float v = mMasterVolume * typeVolume;
+#endif
                 uint32_t vlr = track->mServerProxy->getVolumeLR();
                 float v_clamped = v * (vlr & 0xFFFF);
                 if (v_clamped > MAX_GAIN) {
@@ -3575,6 +3629,50 @@ void AudioFlinger::DuplicatingThread::cacheParameters_l()
 
     MixerThread::cacheParameters_l();
 }
+
+#ifdef OMAP_MULTIZONE_AUDIO
+status_t AudioFlinger::DuplicatingThread::setOutputTrackVolume(PlaybackThread *thread,
+                                                               float volume)
+{
+    Mutex::Autolock _l(mLock);
+    for (size_t i = 0; i < mOutputTracks.size(); i++) {
+        if (mOutputTracks[i]->thread() == thread) {
+            return mOutputTracks[i]->setVolume(volume);
+        }
+    }
+    ALOGV("setOutputTrackVolume(): unknown thread: %p", thread);
+    return BAD_VALUE;
+}
+
+void AudioFlinger::DuplicatingThread::updateZoneVolumes()
+{
+    if (mTracks.isEmpty()) {
+        ALOGW("updateZoneVolumes() no active tracks available");
+        return;
+    }
+
+    int sessionId = mTracks[0]->sessionId();
+
+    for (size_t i = 0; i < mOutputTracks.size(); i++) {
+        sp<OutputTrack> outputTrack = mOutputTracks[i];
+        sp<ThreadBase> thread = outputTrack->thread().promote();
+        if (thread == 0) {
+            ALOGW("updateZoneVolumes() could not promote thread on output track %p",
+                  outputTracks[i].get());
+            continue;
+        }
+
+        PlaybackThread *playbackThread = (PlaybackThread *)thread.get();
+        float volume = playbackThread->getZoneVolume(sessionId);
+
+        // OutputTracks get volume information using the sessionId of the track playing
+        // in the DuplicatingThread, since the OutputTrack is an internal one whose id
+        // is not meaningful outside the duplicating thread
+        outputTrack->setZoneVolume(volume);
+        outputTrack->setSessionIdForVolume(sessionId);
+    }
+}
+#endif
 
 // ----------------------------------------------------------------------------
 //      Record

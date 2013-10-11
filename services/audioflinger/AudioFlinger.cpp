@@ -762,6 +762,63 @@ bool AudioFlinger::masterMute_l() const
     return mMasterMute;
 }
 
+#ifdef OMAP_MULTIZONE_AUDIO
+status_t AudioFlinger::setDuplicatingVolume(audio_io_handle_t src,
+                                            audio_io_handle_t dest,
+                                            float value)
+{
+    if (!src || !dest) {
+        ALOGE("setDuplicatingVolume() invalid source/dest handles");
+        return BAD_VALUE;
+    }
+
+    AutoMutex lock(mLock);
+    DuplicatingThread *srcThread = checkDuplicatingThread_l(src);
+    if (srcThread == NULL) {
+        return BAD_VALUE;
+    }
+
+    PlaybackThread *destThread = checkPlaybackThread_l(dest);
+    if (destThread == NULL) {
+        return BAD_VALUE;
+    }
+
+    ALOGV("setDuplicatingVolume() thread %p -> %p output %d -> %d volume %f",
+          srcThread, destThread, src, dest, value);
+
+    srcThread->setOutputTrackVolume(destThread, value);
+
+    return NO_ERROR;
+}
+
+status_t AudioFlinger::setZoneVolume(audio_io_handle_t output,
+                                     int sessionId,
+                                     float value)
+{
+    if (!output) {
+        ALOGE("setZoneVolume() invalid output");
+        return BAD_VALUE;
+    }
+
+    if (!sessionId) {
+        ALOGE("setZoneVolume() invalid session id");
+        return BAD_VALUE;
+    }
+
+    AutoMutex lock(mLock);
+    PlaybackThread *thread = checkPlaybackThread_l(output);
+    if (thread == NULL) {
+        ALOGE("setZoneVolume(): no playback thread for output %d", output);
+        return BAD_VALUE;
+    }
+
+    ALOGV("setZoneVolume() thread %p output %d session %d volume %f",
+          thread, output, sessionId, value);
+
+    return thread->setZoneVolume(sessionId, value);
+}
+#endif
+
 status_t AudioFlinger::setStreamVolume(audio_stream_type_t stream, float value,
         audio_io_handle_t output)
 {
@@ -1918,6 +1975,15 @@ AudioFlinger::MixerThread *AudioFlinger::checkMixerThread_l(audio_io_handle_t ou
     PlaybackThread *thread = checkPlaybackThread_l(output);
     return thread != NULL && thread->type() != ThreadBase::DIRECT ? (MixerThread *) thread : NULL;
 }
+
+#ifdef OMAP_MULTIZONE_AUDIO
+// checkDuplicatingThread_l() must be called with AudioFlinger::mLock held
+AudioFlinger::DuplicatingThread *AudioFlinger::checkDuplicatingThread_l(audio_io_handle_t output) const
+{
+    PlaybackThread *thread = checkPlaybackThread_l(output);
+    return thread != NULL && thread->type() == ThreadBase::DUPLICATING ? (DuplicatingThread *) thread : NULL;
+}
+#endif
 
 // checkRecordThread_l() must be called with AudioFlinger::mLock held
 AudioFlinger::RecordThread *AudioFlinger::checkRecordThread_l(audio_io_handle_t input) const

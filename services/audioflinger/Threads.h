@@ -559,6 +559,14 @@ protected:
                 // accessed by both binder threads and within threadLoop(), lock on mutex needed
                 unsigned    mFastTrackAvailMask;    // bit i set if fast track [i] is available
 
+#ifdef OMAP_MULTIZONE_AUDIO
+public:
+    virtual     status_t    setZoneVolume(int sessionId, float volume);
+    virtual     float       getZoneVolume(int sessionId) const;
+    virtual     void        updateZoneVolumes();
+protected:
+    KeyedVector<int, float> mSessionZoneVolumes;
+#endif
 };
 
 class MixerThread : public PlaybackThread {
@@ -688,6 +696,12 @@ private:
     SortedVector < sp<OutputTrack> >  mOutputTracks;
 public:
     virtual     bool        hasFastMixer() const { return false; }
+
+#ifdef OMAP_MULTIZONE_AUDIO
+public:
+                void        updateZoneVolumes();
+    virtual     status_t    setOutputTrackVolume(PlaybackThread* thread, float volume);
+#endif
 };
 
 
