@@ -764,6 +764,101 @@ fail:
     return result;
 }
 
+#ifdef OMAP_ENHANCEMENT
+bool MtpDevice::readObject(MtpObjectHandle handle,
+        bool (* callback)(void* data, int offset, int length, void* clientData),
+        int objectSize, int objoffset, void* clientData) {
+    Mutex::Autolock autoLock(mMutex);
+    bool result = false;
+
+    mRequest.reset();
+    mRequest.setParameter(1, handle);
+    mRequest.setParameter(2, objoffset);
+    mRequest.setParameter(3, objectSize);
+    if (sendRequest(MTP_OPERATION_GET_PARTIAL_OBJECT)
+            && mData.readDataHeader(mRequestIn1)) {
+        uint32_t length = mData.getContainerLength();
+        if (length - MTP_CONTAINER_HEADER_SIZE != objectSize) {
+            ALOGE("readObject error objectSize: %d, length: %d",
+                    objectSize, length);
+            goto fail;
+        }
+        length -= MTP_CONTAINER_HEADER_SIZE;
+        uint32_t remaining = length;
+        int offset = 0;
+
+        int initialDataLength = 0;
+        void* initialData = mData.getData(initialDataLength);
+        if (initialData) {
+            if (initialDataLength > 0) {
+                if (!callback(initialData, 0, initialDataLength, clientData))
+                    goto fail;
+                remaining -= initialDataLength;
+                offset += initialDataLength;
+            }
+            free(initialData);
+        }
+
+        // USB reads greater than 16K don't work
+        char buffer1[16384], buffer2[16384];
+        mRequestIn1->buffer = buffer1;
+        mRequestIn2->buffer = buffer2;
+        struct usb_request* req = mRequestIn1;
+        void* writeBuffer = NULL;
+        int writeLength = 0;
+
+        while (remaining > 0 || writeBuffer) {
+            if (remaining > 0) {
+                // queue up a read request
+                req->buffer_length = (remaining > sizeof(buffer1) ? sizeof(buffer1) : remaining);
+                if (mData.readDataAsync(req)) {
+                    ALOGE("readDataAsync failed");
+                    goto fail;
+                }
+            } else {
+                req = NULL;
+            }
+
+            if (writeBuffer) {
+                // write previous buffer
+                if (!callback(writeBuffer, offset, writeLength, clientData)) {
+                    ALOGE("write failed");
+                    // wait for pending read before failing
+                    if (req)
+                        mData.readDataWait(mDevice);
+                    goto fail;
+                }
+                offset += writeLength;
+                writeBuffer = NULL;
+            }
+
+            // wait for read to complete
+            if (req) {
+                int read = mData.readDataWait(mDevice);
+                if (read < 0)
+                    goto fail;
+
+                if (read > 0) {
+                    writeBuffer = req->buffer;
+                    writeLength = read;
+                    remaining -= read;
+                    req = (req == mRequestIn1 ? mRequestIn2 : mRequestIn1);
+                } else {
+                    writeBuffer = NULL;
+                }
+            }
+        }
+
+        MtpResponseCode response = readResponse();
+        if (response == MTP_RESPONSE_OK)
+            result = true;
+    }
+
+fail:
+    return result;
+}
+#endif
+
 bool MtpDevice::sendRequest(MtpOperationCode operation) {
     ALOGV("sendRequest: %s\n", MtpDebug::getOperationCodeName(operation));
     mReceivedResponse = false;
