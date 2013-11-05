@@ -188,7 +188,11 @@ MediaScanResult MediaScanner::doProcessDirectoryEntry(
     strcpy(fileSpot, name);
 
     int type = entry->d_type;
+#ifdef OMAP_ENHANCEMENT
+    if (type == DT_UNKNOWN || type == DT_REG) {
+#else
     if (type == DT_UNKNOWN) {
+#endif
         // If the type is unknown, stat() the file instead.
         // This is sometimes necessary when accessing NFS mounted filesystems, but
         // could be needed in other cases well.
