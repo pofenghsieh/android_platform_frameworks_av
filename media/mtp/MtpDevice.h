@@ -101,6 +101,13 @@ public:
                                     int objectSize, void* clientData);
     bool                    readObject(MtpObjectHandle handle, const char* destPath, int group,
                                     int perm);
+#ifdef OMAP_ENHANCEMENT
+    bool                    readObject(MtpObjectHandle handle,
+                                    bool (* callback)(void* data, int offset,
+                                            int length, void* clientData),
+                                    int objectSize, int objoffset, void* clientData);
+#endif
+
 
 private:
     bool                    sendRequest(MtpOperationCode operation);
