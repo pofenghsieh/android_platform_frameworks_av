@@ -778,10 +778,9 @@ bool MtpDevice::readObject(MtpObjectHandle handle,
     if (sendRequest(MTP_OPERATION_GET_PARTIAL_OBJECT)
             && mData.readDataHeader(mRequestIn1)) {
         uint32_t length = mData.getContainerLength();
-        if (length - MTP_CONTAINER_HEADER_SIZE != objectSize) {
-            ALOGE("readObject error objectSize: %d, length: %d",
-                    objectSize, length);
-            goto fail;
+        if (length - MTP_CONTAINER_HEADER_SIZE > objectSize) {
+            objectSize = length - MTP_CONTAINER_HEADER_SIZE;
+            mRequest.setParameter(3, objectSize);
         }
         length -= MTP_CONTAINER_HEADER_SIZE;
         uint32_t remaining = length;
