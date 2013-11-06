@@ -65,6 +65,38 @@ static int64_t kHighWaterMarkUs = 5000000ll;  // 5secs
 static const size_t kLowWaterMarkBytes = 40000;
 static const size_t kHighWaterMarkBytes = 200000;
 
+/*
+    To print the FPS, type this command on the console before starting playback:
+    setprop debug.video.showfps 1
+    To disable the prints, type:
+    setprop debug.video.showfps 0
+
+*/
+
+#ifdef OMAP_ENHANCEMENT
+
+static int mDebugFps = 0;
+
+static void debugShowFPS()
+{
+    static int mFrameCount = 0;
+    static int mLastFrameCount = 0;
+    static nsecs_t mLastFpsTime = 0;
+    static float mFps = 0;
+    mFrameCount++;
+    if (!(mFrameCount & 0x1F)) {
+        nsecs_t now = systemTime();
+        nsecs_t diff = now - mLastFpsTime;
+        mFps = ((mFrameCount - mLastFrameCount) * float(s2ns(1))) / diff;
+        mLastFpsTime = now;
+        mLastFrameCount = mFrameCount;
+        ALOGD("%d Frames, %f FPS", mFrameCount, mFps);
+    }
+    // XXX: mFPS has the value we want
+}
+
+#endif
+
 struct AwesomeEvent : public TimedEventQueue::Event {
     AwesomeEvent(
             AwesomePlayer *player,
@@ -122,6 +154,12 @@ struct AwesomeNativeWindowRenderer : public AwesomeRenderer {
             int32_t rotationDegrees)
         : mNativeWindow(nativeWindow) {
         applyRotation(rotationDegrees);
+#ifdef OMAP_ENHANCEMENT
+    char value[PROPERTY_VALUE_MAX];
+    property_get("debug.video.showfps", value, "0");
+    mDebugFps = atoi(value);
+    ALOGD_IF(mDebugFps, "showfps enabled");
+#endif
     }
 
     virtual void render(MediaBuffer *buffer) {
@@ -139,6 +177,11 @@ struct AwesomeNativeWindowRenderer : public AwesomeRenderer {
 
         sp<MetaData> metaData = buffer->meta_data();
         metaData->setInt32(kKeyRendered, 1);
+#ifdef OMAP_ENHANCEMENT
+        if (mDebugFps != 0) {
+          debugShowFPS();
+        }
+#endif
     }
 
 protected:
@@ -1802,7 +1845,14 @@ void AwesomePlayer::onVideoEvent() {
                 // The widevine extractor doesn't deal well with seeking
                 // audio and video independently. We'll just have to wait
                 // until the decoder catches up, which won't be long at all.
+#ifdef OMAP_ENHANCEMENT
+                if (mDebugFps != 0) {
+                    ALOGD("we're much too late (%.2f secs), video skipping ahead",
+                          latenessUs / 1E6);
+                }
+#else
                 ALOGI("we're very late (%.2f secs)", latenessUs / 1E6);
+#endif
             }
         }
 
@@ -1814,9 +1864,17 @@ void AwesomePlayer::onVideoEvent() {
             if (!(mFlags & SLOW_DECODER_HACK)
                     || mSinceLastDropped > FRAME_DROP_FREQ)
             {
+#ifdef OMAP_ENHANCEMENT
+                if (mDebugFps != 0) {
+                    ALOGE("we're late by %lld us (%.2f secs) dropping "
+                        "one after %d frames",
+                        latenessUs, latenessUs / 1E6, mSinceLastDropped);
+                }
+#else
                 ALOGV("we're late by %lld us (%.2f secs) dropping "
                      "one after %d frames",
                      latenessUs, latenessUs / 1E6, mSinceLastDropped);
+#endif
 
                 mSinceLastDropped = 0;
                 mVideoBuffer->release();
