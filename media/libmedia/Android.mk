@@ -57,6 +57,10 @@ LOCAL_SRC_FILES:= \
 
 LOCAL_SRC_FILES += ../libnbaio/roundup.c
 
+ifeq ($(OMAP_ENHANCEMENT),true)
+LOCAL_SRC_FILES += AudioLoopback.cpp
+endif
+
 # for <cutils/atomic-inline.h>
 LOCAL_CFLAGS += -DANDROID_SMP=$(if $(findstring true,$(TARGET_CPU_SMP)),1,0)
 LOCAL_SRC_FILES += SingleStateQueue.cpp
@@ -66,6 +70,10 @@ LOCAL_SHARED_LIBRARIES := \
 	libui liblog libcutils libutils libbinder libsonivox libicuuc libexpat \
         libcamera_client libstagefright_foundation \
         libgui libdl libaudioutils
+
+ifeq ($(OMAP_ENHANCEMENT),true)
+LOCAL_SHARED_LIBRARIES += libnbaio
+endif
 
 LOCAL_WHOLE_STATIC_LIBRARY := libmedia_helper
 
