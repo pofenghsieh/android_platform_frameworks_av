@@ -64,6 +64,10 @@ LOCAL_SRC_FILES:= \
 
 LOCAL_SRC_FILES += ../libnbaio/roundup.c
 
+ifeq ($(OMAP_ENHANCEMENT),true)
+LOCAL_SRC_FILES += AudioLoopback.cpp
+endif
+
 LOCAL_SHARED_LIBRARIES := \
 	libui liblog libcutils libutils libbinder libsonivox libicuuc libicui18n libexpat \
         libcamera_client libstagefright_foundation \
