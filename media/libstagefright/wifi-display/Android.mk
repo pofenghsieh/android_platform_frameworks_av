@@ -15,6 +15,10 @@ LOCAL_SRC_FILES:= \
         source/TSPacketizer.cpp         \
         source/WifiDisplaySource.cpp    \
         VideoFormats.cpp                \
+        sink/LinearRegression.cpp       \
+        sink/RTPSink.cpp                \
+        sink/TunnelRenderer.cpp         \
+        sink/WifiDisplaySink.cpp        \
 
 LOCAL_C_INCLUDES:= \
         $(TOP)/frameworks/av/media/libstagefright \
