@@ -26,8 +26,8 @@ namespace android {
 
 AudioLoopback::AudioLoopback(audio_source_t sourceType, uint32_t channelConfig,
                              callback_t callback, void* user) :
-    mFormat(AUDIO_FORMAT_PCM_16_BIT),
-    mPipeFrames(0), mRunning(false)
+    mRecord(NULL), mTrack(NULL), mPipe(NULL), mPipeReader(NULL),
+    mFormat(AUDIO_FORMAT_PCM_16_BIT), mPipeFrames(0), mRunning(false)
 {
     audio_stream_type_t streamType = AUDIO_STREAM_MUSIC;
     size_t inFrameCount;
@@ -165,7 +165,6 @@ AudioLoopback::~AudioLoopback()
             mRecord->stop();
         }
         delete mRecord;
-        mRecord = NULL;
     }
 
     if (mTrack) {
@@ -174,17 +173,14 @@ AudioLoopback::~AudioLoopback()
         }
         mTrack->flush();
         delete mTrack;
-        mTrack = NULL;
     }
 
     if (mPipe) {
         delete mPipe;
-        mPipe = NULL;
     }
 
     if (mPipeReader) {
         delete mPipeReader;
-        mPipeReader = NULL;
     }
 }
 
