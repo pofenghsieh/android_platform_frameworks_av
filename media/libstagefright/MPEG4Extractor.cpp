@@ -39,6 +39,16 @@
 #include <utils/String8.h>
 
 namespace android {
+#ifdef OMAP_ENHANCEMENT
+#define MP4_MPEG2VisualSimple  0x60
+#define MP4_MPEG2VisualMain    0x61
+#define MP4_MPEG2VisualSNR     0x62
+#define MP4_MPEG2VisualSpatial 0x63
+#define MP4_MPEG2VisualHigh    0x64
+#define MP4_MPEG2Visual422     0x65
+#define IS_MP4_MPEG2(x) (x < MP4_MPEG2VisualSimple) ? false : \
+                     (x > MP4_MPEG2Visual422)    ? false : true
+#endif
 
 class MPEG4Source : public MediaSource {
 public:
@@ -311,6 +321,11 @@ static const char *FourCC2MIME(uint32_t fourcc) {
         case FOURCC('H', '2', '6', '3'):
             return MEDIA_MIMETYPE_VIDEO_H263;
 
+#ifdef OMAP_ENHANCEMENT
+        case FOURCC('M', 'P', 'G', '2'):
+        case FOURCC('m', 'p', 'g', '2'):
+            return MEDIA_MIMETYPE_VIDEO_MPEG2;
+#endif
         case FOURCC('a', 'v', 'c', '1'):
             return MEDIA_MIMETYPE_VIDEO_AVC;
 
@@ -1270,6 +1285,10 @@ status_t MPEG4Extractor::parseChunk(off64_t *offset, int depth) {
         case FOURCC('s', '2', '6', '3'):
         case FOURCC('H', '2', '6', '3'):
         case FOURCC('h', '2', '6', '3'):
+#ifdef OMAP_ENHANCEMENT
+        case FOURCC('M', 'P', 'G', '2'):
+        case FOURCC('m', 'p', 'g', '2'):
+#endif
         case FOURCC('a', 'v', 'c', '1'):
         {
             mHasVideo = true;
@@ -1519,6 +1538,22 @@ status_t MPEG4Extractor::parseChunk(off64_t *offset, int depth) {
 
             mLastTrack->meta->setData(
                     kKeyESDS, kTypeESDS, &buffer[4], chunk_data_size - 4);
+
+#ifdef OMAP_ENHANCEMENT
+            // For MP4V video tracks, check and update mime type, based on MPEG2/MPEG4 bitstream
+            const char *mime;
+            CHECK(mLastTrack->meta->findCString(kKeyMIMEType, &mime));
+            if (!strcmp(mime,MEDIA_MIMETYPE_VIDEO_MPEG4)) {
+                ESDS esds(&buffer[4], chunk_data_size - 4);
+                uint8_t objectTypeIndication;
+                if (OK == esds.getObjectTypeIndication(&objectTypeIndication)) {
+                    if (IS_MP4_MPEG2(objectTypeIndication)) {
+                        ALOGV("Mpeg2 Clip. Setting MIME type to MPEG2");
+                        mLastTrack->meta->setCString(kKeyMIMEType, MEDIA_MIMETYPE_VIDEO_MPEG2);
+                    }
+                }
+            }
+#endif
 
             if (mPath.size() >= 2
                     && mPath[mPath.size() - 2] == FOURCC('m', 'p', '4', 'a')) {
