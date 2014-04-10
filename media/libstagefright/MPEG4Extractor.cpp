@@ -1553,6 +1553,11 @@ status_t MPEG4Extractor::parseChunk(off64_t *offset, int depth) {
                     }
                 }
             }
+            CHECK(mLastTrack->meta->findCString(kKeyMIMEType, &mime));
+            if (!strcmp(mime,MEDIA_MIMETYPE_VIDEO_MPEG2)) {
+                //remove the "esds" field, as it is applicable only for mpeg-4
+                mLastTrack->meta->remove(kKeyESDS);
+            }
 #endif
 
             if (mPath.size() >= 2
