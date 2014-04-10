@@ -27,6 +27,10 @@
 #include <media/stagefright/OMXCodec.h>
 #include <media/MediaPlayerInterface.h>
 
+#ifdef OMAP_ENHANCEMENT
+#include <stdio.h>
+#endif
+
 using namespace android;
 
 // Print usage showing how to use this utility to record videos
@@ -44,6 +48,9 @@ static void usage(const char *me) {
     fprintf(stderr, "       -p encoder profile. see omx il header (default: encoder specific)\n");
     fprintf(stderr, "       -v video codec: [0] AVC [1] M4V [2] H263 (default: 0)\n");
     fprintf(stderr, "       -s(oftware) prefer software codec\n");
+#ifdef OMAP_ENHANCEMENT
+    fprintf(stderr, "       -x filename: input file path (default: encode blank frames \n");
+#endif
     fprintf(stderr, "       -o filename: output file (default: /sdcard/output.mp4)\n");
     exit(1);
 }
@@ -62,6 +69,20 @@ public:
         mGroup.add_buffer(new MediaBuffer(mSize));
     }
 
+#ifdef OMAP_ENHANCEMENT
+    DummySource(int width, int height, int nFrames, int fps, int colorFormat, char* infileName)
+        : mWidth(width),
+          mHeight(height),
+          mMaxNumFrames(nFrames),
+          mFrameRate(fps),
+          mColorFormat(colorFormat),
+          mSize((width * height * 3) / 2),
+          mInfileName(infileName) {
+
+        mGroup.add_buffer(new MediaBuffer(mSize));
+    }
+#endif
+
     virtual sp<MetaData> getFormat() {
         sp<MetaData> meta = new MetaData;
         meta->setInt32(kKeyWidth, mWidth);
@@ -74,6 +95,13 @@ public:
 
     virtual status_t start(MetaData *params) {
         mNumFramesOutput = 0;
+#ifdef OMAP_ENHANCEMENT
+        pInputFile = fopen(mInfileName, "rb");
+        if ( pInputFile == NULL ) {
+            ALOGE("\nError: failed to open the file %s for reading\n", mInfileName);
+            ALOGE("Encode blank frames \n");
+        }
+#endif
         return OK;
     }
 
@@ -101,6 +129,21 @@ public:
         // read() much faster.
         //char x = (char)((double)rand() / RAND_MAX * 255);
         //memset((*buffer)->data(), x, mSize);
+
+#ifdef OMAP_ENHANCEMENT
+        if (pInputFile) {
+READ_FILE:
+            int size = fread ((*buffer)->data(), mSize, 1, pInputFile);
+            if (size <= 0) {
+                ALOGE("FILE Read failed: check for EOF !!!\n");
+                if (feof(pInputFile)) {
+                    rewind(pInputFile);
+                    goto READ_FILE;
+                }
+            }
+        fseek(pInputFile, 0, SEEK_CUR);
+        }
+#endif
         (*buffer)->set_range(0, mSize);
         (*buffer)->meta_data()->clear();
         (*buffer)->meta_data()->setInt64(
@@ -121,6 +164,10 @@ private:
     int mColorFormat;
     size_t mSize;
     int64_t mNumFramesOutput;;
+#ifdef OMAP_ENHANCEMENT
+    char *mInfileName;
+    FILE *pInputFile;
+#endif
 
     DummySource(const DummySource &);
     DummySource &operator=(const DummySource &);
@@ -164,10 +211,17 @@ int main(int argc, char **argv) {
     int codec = 0;
     char *fileName = "/sdcard/output.mp4";
     bool preferSoftwareCodec = false;
+#ifdef OMAP_ENHANCEMENT
+    char *InputfileName = NULL;
+#endif
 
     android::ProcessState::self()->startThreadPool();
     int res;
+#ifdef OMAP_ENHANCEMENT
+    while ((res = getopt(argc, argv, "b:c:f:i:n:w:t:l:p:v:o:x:hs")) >= 0) {
+#else
     while ((res = getopt(argc, argv, "b:c:f:i:n:w:t:l:p:v:o:hs")) >= 0) {
+#endif
         switch (res) {
             case 'b':
             {
@@ -240,7 +294,13 @@ int main(int argc, char **argv) {
                 fileName = optarg;
                 break;
             }
-
+#ifdef OMAP_ENHANCEMENT
+            case 'x':
+            {
+                InputfileName = optarg;
+                break;
+            }
+#endif
             case 's':
             {
                 preferSoftwareCodec = true;
@@ -260,8 +320,13 @@ int main(int argc, char **argv) {
     CHECK_EQ(client.connect(), (status_t)OK);
 
     status_t err = OK;
+#ifdef OMAP_ENHANCEMENT
+    sp<MediaSource> source =
+        new DummySource(width, height, nFrames, frameRateFps, colorFormat, InputfileName);
+#else
     sp<MediaSource> source =
         new DummySource(width, height, nFrames, frameRateFps, colorFormat);
+#endif
 
     sp<MetaData> enc_meta = new MetaData;
     switch (codec) {
