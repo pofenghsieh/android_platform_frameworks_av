@@ -50,10 +50,6 @@
 
 #include "include/avc_utils.h"
 
-#ifdef OMAP_ENHANCEMENT
-#include <cutils/properties.h>
-#endif
-
 namespace android {
 
 // OMX errors are directly mapped into status_t range if
@@ -4269,14 +4265,6 @@ bool ACodec::BaseState::onOMXFillBufferDone(
 
             reply->setInt32("buffer-id", info->mBufferID);
 
-#ifdef OMAP_ENHANCEMENT
-            char value[PROPERTY_VALUE_MAX];
-            if (property_get("persist.gallery.player", value, "0")) {
-                if (!strcmp(value, "1")) {
-                    reply->setInt32("render", true);
-                }
-            }
-#endif
             notify->setMessage("reply", reply);
 
             notify->post();
