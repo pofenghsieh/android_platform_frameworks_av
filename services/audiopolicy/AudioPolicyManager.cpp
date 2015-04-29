@@ -5195,6 +5195,14 @@ audio_devices_t AudioPolicyManager::getDeviceForInputSource(audio_source_t input
                                             ~AUDIO_DEVICE_BIT_IN;
 
     switch (inputSource) {
+#ifdef OMAP_ENHANCEMENT
+    case AUDIO_SOURCE_AUXILIARY_INPUT:
+        if (availableDeviceTypes & AUDIO_DEVICE_IN_LINE) {
+            device = AUDIO_DEVICE_IN_LINE;
+        }
+        break;
+#endif
+
     case AUDIO_SOURCE_VOICE_UPLINK:
       if (availableDeviceTypes & AUDIO_DEVICE_IN_VOICE_CALL) {
           device = AUDIO_DEVICE_IN_VOICE_CALL;
