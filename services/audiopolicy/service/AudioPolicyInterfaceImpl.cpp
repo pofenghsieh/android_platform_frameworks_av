@@ -274,6 +274,9 @@ status_t AudioPolicyService::getInputForAttr(const audio_attributes_t *attr,
     }
     // already checked by client, but double-check in case the client wrapper is bypassed
     if (attr->source >= AUDIO_SOURCE_CNT && attr->source != AUDIO_SOURCE_HOTWORD &&
+#ifdef OMAP_ENHANCEMENT
+        attr->source != AUDIO_SOURCE_AUXILIARY_INPUT &&
+#endif
         attr->source != AUDIO_SOURCE_FM_TUNER) {
         return BAD_VALUE;
     }
