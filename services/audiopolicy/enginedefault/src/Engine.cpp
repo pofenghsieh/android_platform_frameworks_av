@@ -599,6 +599,14 @@ audio_devices_t Engine::getDeviceForInputSource(audio_source_t inputSource) cons
     uint32_t device = AUDIO_DEVICE_NONE;
 
     switch (inputSource) {
+#ifdef OMAP_ENHANCEMENT
+    case AUDIO_SOURCE_AUXILIARY_INPUT:
+        if (availableDeviceTypes & AUDIO_DEVICE_IN_LINE) {
+            device = AUDIO_DEVICE_IN_LINE;
+        }
+        break;
+#endif
+
     case AUDIO_SOURCE_VOICE_UPLINK:
       if (availableDeviceTypes & AUDIO_DEVICE_IN_VOICE_CALL) {
           device = AUDIO_DEVICE_IN_VOICE_CALL;
